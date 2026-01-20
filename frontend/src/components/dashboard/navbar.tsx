@@ -27,9 +27,11 @@ import {
   Plus,
   Menu
 } from "lucide-react";
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { authApi } from "@/lib/auth";
+import { restaurantApi } from "@/lib/restaurants";
 
 interface NavbarProps {
   title?: string;
@@ -38,7 +40,46 @@ interface NavbarProps {
 export function Navbar({ title }: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [restaurant, setRestaurant] = useState<any>(null);
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const storedUser = authApi.getStoredUser();
+      setUser(storedUser);
+
+      // Fetch user's restaurants (get the first one as primary)
+      if (storedUser?.role === 'owner' || storedUser?.role === 'admin') {
+        try {
+          const response = await restaurantApi.getAll();
+          if (response.success && response.data && response.data.length > 0) {
+            // Use the first restaurant as primary
+            setRestaurant(response.data[0]);
+          }
+        } catch (error) {
+          console.error('Failed to fetch restaurants:', error);
+          // Don't show error to user, just log it
+        }
+      }
+    };
+
+    // Only fetch if user is authenticated
+    if (authApi.isAuthenticated()) {
+      fetchUserData();
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    await authApi.logout();
+    router.push('/auth/login');
+  };
+
+  const getUserInitials = () => {
+    if (!user?.fullName) return 'U';
+    return user.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase();
+  };
 
   // Generate breadcrumbs based on current path
   const generateBreadcrumbs = () => {
@@ -211,6 +252,31 @@ export function Navbar({ title }: NavbarProps) {
                   </SheetDescription>
                 </SheetHeader>
                 <div className="grid gap-4 py-4">
+                  {/* User & Restaurant Info */}
+                  {(user || restaurant) && (
+                    <div className="border-b pb-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={user?.avatarUrl} alt={user?.fullName} />
+                          <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{user?.fullName || 'User'}</p>
+                          {restaurant && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <Avatar className="h-4 w-4">
+                                <AvatarImage src={restaurant.logo_url} alt={restaurant.name} />
+                                <AvatarFallback className="text-xs">{restaurant.name?.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <p className="text-xs text-muted-foreground truncate">{restaurant.name}</p>
+                            </div>
+                          )}
+                          <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Mobile Search */}
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -256,7 +322,7 @@ export function Navbar({ title }: NavbarProps) {
                   <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-4 w-4" />
                     <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 text-white text-xs">
-                      3
+                      0
                     </Badge>
                     <span className="sr-only">Notifications</span>
                   </Button>
@@ -264,40 +330,11 @@ export function Navbar({ title }: NavbarProps) {
                 <DropdownMenuContent className="w-80" align="end">
                   <DropdownMenuLabel className="flex items-center justify-between">
                     Notifications
-                    <Badge variant="secondary" className="ml-2">3</Badge>
+                    <Badge variant="secondary" className="ml-2">0</Badge>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <div className="max-h-64 overflow-y-auto">
-                    <DropdownMenuItem className="flex flex-col items-start p-4 cursor-pointer">
-                      <div className="flex w-full items-start justify-between">
-                        <div className="flex-1">
-                          <div className="font-medium">New Order Received</div>
-                          <div className="text-sm text-muted-foreground">Pizza Palace - Order #1234</div>
-                          <div className="text-xs text-muted-foreground mt-1">2 minutes ago</div>
-                        </div>
-                        <div className="h-2 w-2 bg-blue-500 rounded-full mt-2"></div>
-                      </div>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="flex flex-col items-start p-4 cursor-pointer">
-                      <div className="flex w-full items-start justify-between">
-                        <div className="flex-1">
-                          <div className="font-medium">Restaurant Approved</div>
-                          <div className="text-sm text-muted-foreground">Burger Barn is now live</div>
-                          <div className="text-xs text-muted-foreground mt-1">1 hour ago</div>
-                        </div>
-                        <div className="h-2 w-2 bg-green-500 rounded-full mt-2"></div>
-                      </div>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="flex flex-col items-start p-4 cursor-pointer">
-                      <div className="flex w-full items-start justify-between">
-                        <div className="flex-1">
-                          <div className="font-medium">Low Stock Alert</div>
-                          <div className="text-sm text-muted-foreground">Sushi Spot - Salmon running low</div>
-                          <div className="text-xs text-muted-foreground mt-1">3 hours ago</div>
-                        </div>
-                        <div className="h-2 w-2 bg-yellow-500 rounded-full mt-2"></div>
-                      </div>
-                    </DropdownMenuItem>
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    No new notifications
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem className="text-center justify-center cursor-pointer">
@@ -322,17 +359,26 @@ export function Navbar({ title }: NavbarProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/api/placeholder/32/32" alt="Profile" />
-                    <AvatarFallback>JD</AvatarFallback>
+                    <AvatarImage src={user?.avatarUrl} alt={user?.fullName} />
+                    <AvatarFallback>{getUserInitials()}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">John Doe</p>
+                    <p className="text-sm font-medium leading-none">{user?.fullName || 'User'}</p>
+                    {restaurant && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <Avatar className="h-4 w-4">
+                          <AvatarImage src={restaurant.logo_url} alt={restaurant.name} />
+                          <AvatarFallback className="text-xs">{restaurant.name?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <p className="text-xs text-muted-foreground">{restaurant.name}</p>
+                      </div>
+                    )}
                     <p className="text-xs leading-none text-muted-foreground">
-                      john@example.com
+                      {user?.email}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -356,7 +402,7 @@ export function Navbar({ title }: NavbarProps) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-600 cursor-pointer">
+                <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>

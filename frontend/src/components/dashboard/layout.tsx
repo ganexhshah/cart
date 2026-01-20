@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AppSidebar } from "./sidebar";
 import { Navbar } from "./navbar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { authApi } from "@/lib/auth";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -10,6 +13,23 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
+  const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
+
+  useEffect(() => {
+    // Check authentication on mount (client-side only)
+    if (!authApi.isAuthenticated()) {
+      router.push('/auth/login');
+    } else {
+      setIsChecking(false);
+    }
+  }, [router]);
+
+  // Show nothing while checking auth to avoid hydration mismatch
+  if (isChecking) {
+    return null;
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />

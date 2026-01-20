@@ -14,7 +14,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DashboardLayout } from "@/components/dashboard/layout";
-import { useState } from "react";
+import { menuApi, MenuItem, MenuCategory, MenuStats } from "@/lib/menu";
+import { restaurantApi } from "@/lib/restaurants";
+import { useState, useEffect } from "react";
 import { 
   Plus,
   Search,
@@ -28,143 +30,37 @@ import {
   Clock,
   ChefHat,
   Utensils,
-  ImageIcon
+  ImageIcon,
+  Loader2
 } from "lucide-react";
 
 export default function MenuPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [menuItems, setMenuItems] = useState([
-    {
-      id: 1,
-      name: "Margherita Pizza",
-      description: "Classic pizza with fresh tomatoes, mozzarella, and basil",
-      price: 18.99,
-      category: "pizza",
-      image: "/api/placeholder/80/80",
-      restaurant: "Pizza Palace",
-      restaurantLogo: "/api/placeholder/32/32",
-      status: "available",
-      preparationTime: 15,
-      rating: 4.8,
-      orders: 156,
-      ingredients: ["Tomato sauce", "Mozzarella cheese", "Fresh basil", "Olive oil"],
-      allergens: ["Gluten", "Dairy"],
-      calories: 280,
-      isVegetarian: true,
-      isVegan: false,
-      isGlutenFree: false
-    },
-    {
-      id: 2,
-      name: "Pepperoni Pizza",
-      description: "Traditional pizza topped with spicy pepperoni and mozzarella",
-      price: 21.99,
-      category: "pizza",
-      image: "/api/placeholder/80/80",
-      restaurant: "Pizza Palace",
-      restaurantLogo: "/api/placeholder/32/32",
-      status: "available",
-      preparationTime: 18,
-      rating: 4.7,
-      orders: 203,
-      ingredients: ["Tomato sauce", "Mozzarella cheese", "Pepperoni", "Italian herbs"],
-      allergens: ["Gluten", "Dairy"],
-      calories: 320,
-      isVegetarian: false,
-      isVegan: false,
-      isGlutenFree: false
-    },
-    {
-      id: 3,
-      name: "Classic Burger",
-      description: "Juicy beef patty with lettuce, tomato, onion, and special sauce",
-      price: 14.99,
-      category: "burgers",
-      image: "/api/placeholder/80/80",
-      restaurant: "Burger Barn",
-      restaurantLogo: "/api/placeholder/32/32",
-      status: "available",
-      preparationTime: 12,
-      rating: 4.5,
-      orders: 89,
-      ingredients: ["Beef patty", "Lettuce", "Tomato", "Onion", "Special sauce", "Sesame bun"],
-      allergens: ["Gluten", "Eggs"],
-      calories: 450,
-      isVegetarian: false,
-      isVegan: false,
-      isGlutenFree: false
-    },
-    {
-      id: 4,
-      name: "Veggie Burger",
-      description: "Plant-based patty with fresh vegetables and avocado",
-      price: 13.99,
-      category: "burgers",
-      image: "/api/placeholder/80/80",
-      restaurant: "Burger Barn",
-      restaurantLogo: "/api/placeholder/32/32",
-      status: "available",
-      preparationTime: 10,
-      rating: 4.3,
-      orders: 67,
-      ingredients: ["Plant-based patty", "Lettuce", "Tomato", "Avocado", "Vegan mayo", "Whole wheat bun"],
-      allergens: ["Gluten"],
-      calories: 380,
-      isVegetarian: true,
-      isVegan: true,
-      isGlutenFree: false
-    },
-    {
-      id: 5,
-      name: "Salmon Roll",
-      description: "Fresh salmon with cucumber and avocado, served with wasabi",
-      price: 12.99,
-      category: "sushi",
-      image: "/api/placeholder/80/80",
-      restaurant: "Sushi Spot",
-      restaurantLogo: "/api/placeholder/32/32",
-      status: "out_of_stock",
-      preparationTime: 8,
-      rating: 4.9,
-      orders: 134,
-      ingredients: ["Fresh salmon", "Cucumber", "Avocado", "Sushi rice", "Nori"],
-      allergens: ["Fish"],
-      calories: 220,
-      isVegetarian: false,
-      isVegan: false,
-      isGlutenFree: true
-    },
-    {
-      id: 6,
-      name: "Caesar Salad",
-      description: "Crisp romaine lettuce with parmesan, croutons, and Caesar dressing",
-      price: 12.50,
-      category: "salads",
-      image: "/api/placeholder/80/80",
-      restaurant: "Pizza Palace",
-      restaurantLogo: "/api/placeholder/32/32",
-      status: "available",
-      preparationTime: 5,
-      rating: 4.4,
-      orders: 78,
-      ingredients: ["Romaine lettuce", "Parmesan cheese", "Croutons", "Caesar dressing"],
-      allergens: ["Dairy", "Gluten", "Eggs"],
-      calories: 180,
-      isVegetarian: true,
-      isVegan: false,
-      isGlutenFree: false
-    }
-  ]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<MenuCategory[]>([]);
+  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [menuStats, setMenuStats] = useState<MenuStats>({
+    total_items: 0,
+    available_items: 0,
+    out_of_stock_items: 0,
+    discontinued_items: 0,
+    avg_rating: 0,
+    total_orders: 0,
+    avg_price: 0,
+    featured_items: 0
+  });
 
   // Form state for adding new item
   const [newItem, setNewItem] = useState({
     name: "",
     description: "",
     price: "",
-    category: "",
+    categoryId: "",
     preparationTime: "",
     calories: "",
     ingredients: "",
@@ -172,52 +68,163 @@ export default function MenuPage() {
     isVegetarian: false,
     isVegan: false,
     isGlutenFree: false,
-    restaurant: "Pizza Palace" // Default restaurant
+    restaurantId: "" // Will be set from user's restaurants
   });
 
-  const handleAddItem = () => {
-    if (!newItem.name || !newItem.price || !newItem.category) {
+  // Load data on component mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Load categories
+      const categoriesResponse = await menuApi.getCategories();
+      if (categoriesResponse.success) {
+        setCategories(categoriesResponse.data);
+      }
+
+      // Load user's restaurants
+      const restaurantsResponse = await restaurantApi.getAll();
+      if (restaurantsResponse.success) {
+        setRestaurants(restaurantsResponse.data);
+        // Set default restaurant for new items
+        if (restaurantsResponse.data.length > 0) {
+          setNewItem(prev => ({ ...prev, restaurantId: restaurantsResponse.data[0].id }));
+        }
+      }
+
+      // Load menu items
+      await loadMenuItems();
+
+      // Load stats
+      const statsResponse = await menuApi.getMenuStats();
+      if (statsResponse.success) {
+        setMenuStats(statsResponse.data);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadMenuItems = async () => {
+    try {
+      const filters = {
+        search: searchTerm || undefined,
+        categoryId: categoryFilter !== 'all' ? parseInt(categoryFilter) : undefined
+      };
+
+      const response = await menuApi.getUserMenuItems(filters);
+      if (response.success) {
+        setMenuItems(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading menu items:', error);
+    }
+  };
+
+  // Reload items when filters change
+  useEffect(() => {
+    if (!isLoading) {
+      loadMenuItems();
+    }
+  }, [searchTerm, categoryFilter]);
+
+  const handleAddItem = async () => {
+    if (!newItem.name || !newItem.price || !newItem.categoryId || !newItem.restaurantId) {
       alert("Please fill in all required fields");
       return;
     }
 
-    const item = {
-      id: menuItems.length + 1,
-      name: newItem.name,
-      description: newItem.description,
-      price: parseFloat(newItem.price),
-      category: newItem.category,
-      image: "/api/placeholder/80/80",
-      restaurant: newItem.restaurant,
-      restaurantLogo: "/api/placeholder/32/32",
-      status: "available",
-      preparationTime: parseInt(newItem.preparationTime) || 10,
-      rating: 0,
-      orders: 0,
-      ingredients: newItem.ingredients.split(",").map(i => i.trim()).filter(i => i),
-      allergens: newItem.allergens.split(",").map(a => a.trim()).filter(a => a),
-      calories: parseInt(newItem.calories) || 0,
-      isVegetarian: newItem.isVegetarian,
-      isVegan: newItem.isVegan,
-      isGlutenFree: newItem.isGlutenFree
-    };
+    setIsSaving(true);
+    try {
+      const itemData = {
+        restaurantId: newItem.restaurantId,
+        categoryId: parseInt(newItem.categoryId),
+        name: newItem.name,
+        description: newItem.description,
+        price: parseFloat(newItem.price),
+        preparationTime: newItem.preparationTime ? parseInt(newItem.preparationTime) : undefined,
+        calories: newItem.calories ? parseInt(newItem.calories) : undefined,
+        ingredients: newItem.ingredients.split(",").map(i => i.trim()).filter(i => i),
+        allergens: newItem.allergens.split(",").map(a => a.trim()).filter(a => a),
+        isVegetarian: newItem.isVegetarian,
+        isVegan: newItem.isVegan,
+        isGlutenFree: newItem.isGlutenFree
+      };
 
-    setMenuItems([...menuItems, item]);
-    setNewItem({
-      name: "",
-      description: "",
-      price: "",
-      category: "",
-      preparationTime: "",
-      calories: "",
-      ingredients: "",
-      allergens: "",
-      isVegetarian: false,
-      isVegan: false,
-      isGlutenFree: false,
-      restaurant: "Pizza Palace"
-    });
-    setShowAddDialog(false);
+      const response = await menuApi.createMenuItem(itemData);
+      if (response.success) {
+        // Reset form
+        setNewItem({
+          name: "",
+          description: "",
+          price: "",
+          categoryId: "",
+          preparationTime: "",
+          calories: "",
+          ingredients: "",
+          allergens: "",
+          isVegetarian: false,
+          isVegan: false,
+          isGlutenFree: false,
+          restaurantId: restaurants.length > 0 ? restaurants[0].id : ""
+        });
+        setShowAddDialog(false);
+        
+        // Reload data
+        await loadMenuItems();
+        const statsResponse = await menuApi.getMenuStats();
+        if (statsResponse.success) {
+          setMenuStats(statsResponse.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating menu item:', error);
+      alert('Failed to create menu item. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!confirm('Are you sure you want to delete this menu item?')) {
+      return;
+    }
+
+    try {
+      const response = await menuApi.deleteMenuItem(itemId);
+      if (response.success) {
+        await loadMenuItems();
+        const statsResponse = await menuApi.getMenuStats();
+        if (statsResponse.success) {
+          setMenuStats(statsResponse.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting menu item:', error);
+      alert('Failed to delete menu item. Please try again.');
+    }
+  };
+
+  const handleStatusChange = async (itemId: string, newStatus: string) => {
+    try {
+      const response = await menuApi.updateItemStatus(itemId, newStatus);
+      if (response.success) {
+        await loadMenuItems();
+        const statsResponse = await menuApi.getMenuStats();
+        if (statsResponse.success) {
+          setMenuStats(statsResponse.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating item status:', error);
+      alert('Failed to update item status. Please try again.');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -229,7 +236,8 @@ export default function MenuPage() {
     }
   };
 
-  const getCategoryIcon = (category: string) => {
+  const getCategoryIcon = (categoryName: string) => {
+    const category = categoryName?.toLowerCase();
     switch (category) {
       case "pizza": return <Utensils className="w-4 h-4" />;
       case "burgers": return <ChefHat className="w-4 h-4" />;
@@ -240,100 +248,101 @@ export default function MenuPage() {
   };
 
   const filteredItems = menuItems.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.restaurant.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
+    const matchesSearch = searchTerm === "" || 
+                         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.restaurant_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === "all" || item.category_id?.toString() === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
-  const categories = ["all", ...Array.from(new Set(menuItems.map(item => item.category)))];
-  
-  const menuStats = {
-    total: menuItems.length,
-    available: menuItems.filter(item => item.status === "available").length,
-    outOfStock: menuItems.filter(item => item.status === "out_of_stock").length,
-    avgRating: (menuItems.reduce((sum, item) => sum + item.rating, 0) / menuItems.length).toFixed(1),
-    totalOrders: menuItems.reduce((sum, item) => sum + item.orders, 0),
-    avgPrice: (menuItems.reduce((sum, item) => sum + item.price, 0) / menuItems.length).toFixed(2)
-  };
+  const categoryOptions = [
+    { value: "all", label: "All" },
+    ...categories.map(cat => ({ value: cat.id.toString(), label: cat.name }))
+  ];
 
   return (
     <DashboardLayout title="Menu Management">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Items</p>
-                <p className="text-2xl font-bold">{menuStats.total}</p>
-              </div>
-              <Utensils className="h-8 w-8 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Available</p>
-                <p className="text-2xl font-bold text-green-600">{menuStats.available}</p>
-              </div>
-              <ChefHat className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Out of Stock</p>
-                <p className="text-2xl font-bold text-red-600">{menuStats.outOfStock}</p>
-              </div>
-              <Clock className="h-8 w-8 text-red-600" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg Rating</p>
-                <p className="text-2xl font-bold text-yellow-600">{menuStats.avgRating}</p>
-              </div>
-              <Star className="h-8 w-8 text-yellow-600" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Orders</p>
-                <p className="text-2xl font-bold text-blue-600">{menuStats.totalOrders}</p>
-              </div>
-              <div className="text-blue-600 text-2xl font-bold">₹</div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg Price</p>
-                <p className="text-2xl font-bold text-purple-600">₹{menuStats.avgPrice}</p>
-              </div>
-              <div className="text-purple-600 text-2xl font-bold">₹</div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Items</p>
+                    <p className="text-2xl font-bold">{menuStats.total_items}</p>
+                  </div>
+                  <Utensils className="h-8 w-8 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Available</p>
+                    <p className="text-2xl font-bold text-green-600">{menuStats.available_items}</p>
+                  </div>
+                  <ChefHat className="h-8 w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Out of Stock</p>
+                    <p className="text-2xl font-bold text-red-600">{menuStats.out_of_stock_items}</p>
+                  </div>
+                  <Clock className="h-8 w-8 text-red-600" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Avg Rating</p>
+                    <p className="text-2xl font-bold text-yellow-600">{Number(menuStats.avg_rating || 0).toFixed(1)}</p>
+                  </div>
+                  <Star className="h-8 w-8 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Orders</p>
+                    <p className="text-2xl font-bold text-blue-600">{menuStats.total_orders}</p>
+                  </div>
+                  <div className="text-blue-600 text-2xl font-bold">₹</div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Avg Price</p>
+                    <p className="text-2xl font-bold text-purple-600">₹{Number(menuStats.avg_price || 0).toFixed(2)}</p>
+                  </div>
+                  <div className="text-purple-600 text-2xl font-bold">₹</div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
       {/* Filters and Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -350,9 +359,9 @@ export default function MenuPage() {
           
           <Tabs value={categoryFilter} onValueChange={setCategoryFilter} className="w-full sm:w-auto">
             <TabsList className="grid grid-cols-3 sm:grid-cols-5 w-full sm:w-auto">
-              {categories.map((category) => (
-                <TabsTrigger key={category} value={category} className="text-xs capitalize">
-                  {category === "all" ? "All" : category}
+              {categoryOptions.slice(0, 5).map((category) => (
+                <TabsTrigger key={category.value} value={category.value} className="text-xs capitalize">
+                  {category.label}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -360,7 +369,7 @@ export default function MenuPage() {
         </div>
         
         <div className="flex gap-2 w-full sm:w-auto">
-          <Button variant="outline" className="flex-1 sm:flex-none">
+          <Button variant="outline" className="flex-1 sm:flex-none" onClick={loadData}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
@@ -404,13 +413,13 @@ export default function MenuPage() {
                       <div className="flex items-center gap-3">
                         <div className="relative">
                           <Avatar className="h-12 w-12 rounded-lg">
-                            <AvatarImage src={item.image} alt={item.name} className="object-cover" />
+                            <AvatarImage src={item.image_url || "/api/placeholder/80/80"} alt={item.name} className="object-cover" />
                             <AvatarFallback className="rounded-lg">
                               <ImageIcon className="h-6 w-6" />
                             </AvatarFallback>
                           </Avatar>
                           <div className="absolute -top-1 -right-1">
-                            {getCategoryIcon(item.category)}
+                            {getCategoryIcon(item.category_name || "")}
                           </div>
                         </div>
                         <div className="min-w-0 flex-1">
@@ -418,14 +427,14 @@ export default function MenuPage() {
                           <div className="text-xs text-muted-foreground line-clamp-2">{item.description}</div>
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant="outline" className="text-xs">
-                              {item.category}
+                              {item.category_name}
                             </Badge>
-                            {item.isVegetarian && (
+                            {item.is_vegetarian && (
                               <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
                                 Vegetarian
                               </Badge>
                             )}
-                            {item.isVegan && (
+                            {item.is_vegan && (
                               <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
                                 Vegan
                               </Badge>
@@ -437,13 +446,13 @@ export default function MenuPage() {
                     <TableCell className="hidden sm:table-cell">
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={item.restaurantLogo} alt={item.restaurant} />
-                          <AvatarFallback className="text-xs">{item.restaurant.charAt(0)}</AvatarFallback>
+                          <AvatarImage src="/api/placeholder/32/32" alt={item.restaurant_name} />
+                          <AvatarFallback className="text-xs">{item.restaurant_name?.charAt(0)}</AvatarFallback>
                         </Avatar>
-                        <span className="text-sm">{item.restaurant}</span>
+                        <span className="text-sm">{item.restaurant_name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">₹{item.price.toFixed(2)}</TableCell>
+                    <TableCell className="font-medium">₹{Number(item.price || 0).toFixed(2)}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(item.status)}>
                         {item.status.replace('_', ' ')}
@@ -452,11 +461,11 @@ export default function MenuPage() {
                     <TableCell className="hidden md:table-cell">
                       <div className="flex items-center gap-1">
                         <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm">{item.rating}</span>
+                        <span className="text-sm">{Number(item.average_rating || 0).toFixed(1)}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground hidden lg:table-cell">
-                      {item.orders}
+                      {item.total_orders || 0}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -481,7 +490,10 @@ export default function MenuPage() {
                             <Edit className="mr-2 h-4 w-4" />
                             Edit Item
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem 
+                            className="text-red-600"
+                            onClick={() => handleDeleteItem(item.id)}
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
@@ -550,7 +562,7 @@ export default function MenuPage() {
                     
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium text-muted-foreground">Price</Label>
-                      <span className="text-lg font-semibold">₹{selectedItem.price.toFixed(2)}</span>
+                      <span className="text-lg font-semibold">₹{Number(selectedItem.price || 0).toFixed(2)}</span>
                     </div>
                     
                     <div className="flex items-center justify-between">
@@ -749,18 +761,16 @@ export default function MenuPage() {
                 <Label htmlFor="category" className="text-sm font-medium">
                   Category *
                 </Label>
-                <Select value={newItem.category} onValueChange={(value: string) => setNewItem({...newItem, category: value})}>
+                <Select value={newItem.categoryId} onValueChange={(value: string) => setNewItem({...newItem, categoryId: value})}>
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pizza">Pizza</SelectItem>
-                    <SelectItem value="burgers">Burgers</SelectItem>
-                    <SelectItem value="sushi">Sushi</SelectItem>
-                    <SelectItem value="salads">Salads</SelectItem>
-                    <SelectItem value="appetizers">Appetizers</SelectItem>
-                    <SelectItem value="desserts">Desserts</SelectItem>
-                    <SelectItem value="beverages">Beverages</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -769,14 +779,16 @@ export default function MenuPage() {
                 <Label htmlFor="restaurant" className="text-sm font-medium">
                   Restaurant
                 </Label>
-                <Select value={newItem.restaurant} onValueChange={(value: string) => setNewItem({...newItem, restaurant: value})}>
+                <Select value={newItem.restaurantId} onValueChange={(value: string) => setNewItem({...newItem, restaurantId: value})}>
                   <SelectTrigger className="mt-1">
-                    <SelectValue />
+                    <SelectValue placeholder="Select restaurant" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Pizza Palace">Pizza Palace</SelectItem>
-                    <SelectItem value="Burger Barn">Burger Barn</SelectItem>
-                    <SelectItem value="Sushi Spot">Sushi Spot</SelectItem>
+                    {restaurants.map((restaurant) => (
+                      <SelectItem key={restaurant.id} value={restaurant.id}>
+                        {restaurant.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -864,13 +876,28 @@ export default function MenuPage() {
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddItem} className="bg-slate-900 hover:bg-slate-800 text-white">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Item
+            <Button 
+              onClick={handleAddItem} 
+              disabled={isSaving}
+              className="bg-slate-900 hover:bg-slate-800 text-white"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Item
+                </>
+              )}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+        </>
+      )}
     </DashboardLayout>
   );
 }

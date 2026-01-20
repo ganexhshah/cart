@@ -53,7 +53,7 @@ A customer-facing menu page where customers can browse restaurant items, select 
 - Table selection, cart, and waiter call buttons
 - User profile dropdown
 - Mobile hamburger menu
-
+f wy u y rwu uyy  sq d q dqwt r q w eg  pt   o  p   q o 
 ### CustomerLayout
 - Wrapper component for consistent page layout
 - Handles navbar props and state management

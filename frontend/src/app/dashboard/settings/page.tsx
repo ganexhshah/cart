@@ -17,9 +17,13 @@ import {
   Database,
   Zap,
   Save,
-  RotateCcw
+  RotateCcw,
+  Loader2,
+  Check,
+  AlertCircle
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { userApi } from "@/lib/user";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
@@ -35,37 +39,91 @@ export default function SettingsPage() {
     systemNotifications: true
   });
 
+  const [originalSettings, setOriginalSettings] = useState({ ...settings });
   const [hasChanges, setHasChanges] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+  // Load settings on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setIsLoading(true);
+        const response = await userApi.getSettings();
+        if (response.success && response.data) {
+          const loadedSettings = {
+            language: response.data.language || 'en',
+            timezone: response.data.timezone || 'America/New_York',
+            dateFormat: response.data.dateFormat || 'MM/DD/YYYY',
+            currency: response.data.currency || 'INR',
+            autoSave: response.data.autoSave !== undefined ? response.data.autoSave : true,
+            compactMode: response.data.compactMode !== undefined ? response.data.compactMode : false,
+            showTips: response.data.showTips !== undefined ? response.data.showTips : true,
+            analyticsTracking: response.data.analyticsTracking !== undefined ? response.data.analyticsTracking : true,
+            marketingEmails: response.data.marketingEmails !== undefined ? response.data.marketingEmails : false,
+            systemNotifications: response.data.systemNotifications !== undefined ? response.data.systemNotifications : true
+          };
+          setSettings(loadedSettings);
+          setOriginalSettings(loadedSettings);
+        }
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  // Check for changes
+  useEffect(() => {
+    setHasChanges(JSON.stringify(settings) !== JSON.stringify(originalSettings));
+  }, [settings, originalSettings]);
 
   const handleSettingChange = (key: string, value: any) => {
     setSettings(prev => ({
       ...prev,
       [key]: value
     }));
-    setHasChanges(true);
   };
 
-  const handleSave = () => {
-    // Simulate saving settings
-    console.log("Saving settings:", settings);
-    setHasChanges(false);
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveStatus('idle');
+
+    try {
+      const response = await userApi.updateSettings(settings);
+      if (response.success) {
+        setOriginalSettings({ ...settings });
+        setHasChanges(false);
+        setSaveStatus('success');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      }
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleReset = () => {
-    setSettings({
-      language: "en",
-      timezone: "America/New_York",
-      dateFormat: "MM/DD/YYYY",
-      currency: "INR",
-      autoSave: true,
-      compactMode: false,
-      showTips: true,
-      analyticsTracking: true,
-      marketingEmails: false,
-      systemNotifications: true
-    });
+    setSettings({ ...originalSettings });
     setHasChanges(false);
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Settings">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Settings">
@@ -83,17 +141,41 @@ export default function SettingsPage() {
           </div>
           {hasChanges && (
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleReset}>
+              <Button variant="outline" onClick={handleReset} disabled={isSaving}>
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Reset
               </Button>
-              <Button onClick={handleSave}>
-                <Save className="w-4 h-4 mr-2" />
-                Save Changes
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </>
+                )}
               </Button>
             </div>
           )}
         </div>
+
+        {/* Status Messages */}
+        {saveStatus === 'success' && (
+          <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-md text-green-800">
+            <Check className="h-4 w-4" />
+            <span className="text-sm">Settings saved successfully!</span>
+          </div>
+        )}
+        
+        {saveStatus === 'error' && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-800">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">Failed to save settings. Please try again.</span>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Settings */}

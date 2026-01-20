@@ -1,0 +1,124 @@
+const restaurantService = require('../services/restaurant.service');
+
+class RestaurantController {
+  async createRestaurant(req, res, next) {
+    try {
+      const restaurantData = {
+        ...req.body,
+        ownerId: req.user.userId
+      };
+      
+      const restaurant = await restaurantService.createRestaurant(restaurantData);
+      
+      res.status(201).json({
+        success: true,
+        data: restaurant,
+        message: 'Restaurant created successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  
+  async getRestaurants(req, res, next) {
+    try {
+      const filters = {
+        ownerId: req.user.userId, // Filter by current user's restaurants only
+        city: req.query.city,
+        isActive: req.query.isActive,
+        page: parseInt(req.query.page) || 1,
+        limit: parseInt(req.query.limit) || 20
+      };
+      
+      const restaurants = await restaurantService.getRestaurants(filters);
+      
+      res.json({
+        success: true,
+        data: restaurants
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  
+  async getRestaurantById(req, res, next) {
+    try {
+      const restaurant = await restaurantService.getRestaurantById(req.params.id);
+      
+      // Check if user owns this restaurant
+      if (restaurant.owner_id !== req.user.userId) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You can only view your own restaurants.'
+        });
+      }
+      
+      res.json({
+        success: true,
+        data: restaurant
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  
+  async updateRestaurant(req, res, next) {
+    try {
+      // First check if user owns this restaurant
+      const existingRestaurant = await restaurantService.getRestaurantById(req.params.id);
+      if (existingRestaurant.owner_id !== req.user.userId) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You can only update your own restaurants.'
+        });
+      }
+      
+      const restaurant = await restaurantService.updateRestaurant(req.params.id, req.body);
+      
+      res.json({
+        success: true,
+        data: restaurant,
+        message: 'Restaurant updated successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  
+  async deleteRestaurant(req, res, next) {
+    try {
+      // First check if user owns this restaurant
+      const existingRestaurant = await restaurantService.getRestaurantById(req.params.id);
+      if (existingRestaurant.owner_id !== req.user.userId) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You can only delete your own restaurants.'
+        });
+      }
+      
+      await restaurantService.deleteRestaurant(req.params.id);
+      
+      res.json({
+        success: true,
+        message: 'Restaurant deleted successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  
+  async getRestaurantMenu(req, res, next) {
+    try {
+      const menu = await restaurantService.getRestaurantMenu(req.params.id);
+      
+      res.json({
+        success: true,
+        data: menu
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+}
+
+module.exports = new RestaurantController();

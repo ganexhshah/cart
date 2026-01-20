@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -30,93 +31,156 @@ import {
   Bell,
   User,
   ChevronDown,
-  HelpCircle
+  HelpCircle,
+  Utensils,
+  UserCheck,
+  ClipboardList,
+  UsersRound,
+  LogOut,
+  CreditCard
 } from "lucide-react";
+import { authApi } from "@/lib/auth";
+import { restaurantApi } from "@/lib/restaurants";
 
-const data = {
-  user: {
-    name: "John Doe",
-    email: "john@example.com",
-    restaurant: "Pizza Palace",
-    avatar: "/api/placeholder/40/40",
-    restaurantLogo: "/api/placeholder/32/32"
+const navMain = [
+  {
+    title: "Overview",
+    items: [
+      {
+        title: "Dashboard",
+        url: "/dashboard",
+        icon: LayoutDashboard,
+      },
+    ],
   },
-  navMain: [
-    {
-      title: "Overview",
-      items: [
-        {
-          title: "Dashboard",
-          url: "/dashboard",
-          icon: LayoutDashboard,
-        },
-      ],
-    },
-    {
-      title: "Management",
-      items: [
-        {
-          title: "Restaurants",
-          url: "/dashboard/restaurants",
-          icon: Store,
-        },
-        {
-          title: "Orders",
-          url: "/dashboard/orders",
-          icon: ShoppingCart,
-        },
-        {
-          title: "Menu Items",
-          url: "/dashboard/menu",
-          icon: Receipt,
-        },
-        {
-          title: "Customers",
-          url: "/dashboard/customers",
-          icon: Users,
-        },
-      ],
-    },
-    {
-      title: "Insights",
-      items: [
-        {
-          title: "Reviews",
-          url: "/dashboard/reviews",
-          icon: Star,
-        },
-        {
-          title: "Analytics",
-          url: "/dashboard/analytics",
-          icon: TrendingUp,
-        },
-        {
-          title: "Notifications",
-          url: "/dashboard/notifications",
-          icon: Bell,
-        },
-      ],
-    },
-    {
-      title: "System",
-      items: [
-        {
-          title: "Settings",
-          url: "/dashboard/settings",
-          icon: Settings,
-        },
-        {
-          title: "Help & Support",
-          url: "/dashboard/help",
-          icon: HelpCircle,
-        },
-      ],
-    },
-  ],
-};
+  {
+    title: "Management",
+    items: [
+      {
+        title: "Restaurants",
+        url: "/dashboard/restaurants",
+        icon: Store,
+      },
+      {
+        title: "Orders",
+        url: "/dashboard/orders",
+        icon: ShoppingCart,
+      },
+      {
+        title: "KOT Management",
+        url: "/dashboard/kot",
+        icon: ClipboardList,
+      },
+      {
+        title: "POS System",
+        url: "/dashboard/pos",
+        icon: CreditCard,
+      },
+      {
+        title: "Menu Items",
+        url: "/dashboard/menu",
+        icon: Receipt,
+      },
+      {
+        title: "Tables",
+        url: "/dashboard/tables",
+        icon: Utensils,
+      },
+      {
+        title: "Waiters",
+        url: "/dashboard/waiters",
+        icon: UserCheck,
+      },
+      {
+        title: "Staff",
+        url: "/dashboard/staff",
+        icon: UsersRound,
+      },
+      {
+        title: "Customers",
+        url: "/dashboard/customers",
+        icon: Users,
+      },
+    ],
+  },
+  {
+    title: "Insights",
+    items: [
+      {
+        title: "Reviews",
+        url: "/dashboard/reviews",
+        icon: Star,
+      },
+      {
+        title: "Analytics",
+        url: "/dashboard/analytics",
+        icon: TrendingUp,
+      },
+      {
+        title: "Notifications",
+        url: "/dashboard/notifications",
+        icon: Bell,
+      },
+    ],
+  },
+  {
+    title: "System",
+    items: [
+      {
+        title: "Settings",
+        url: "/dashboard/settings",
+        icon: Settings,
+      },
+      {
+        title: "Help & Support",
+        url: "/dashboard/help",
+        icon: HelpCircle,
+      },
+    ],
+  },
+];
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [restaurant, setRestaurant] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const storedUser = authApi.getStoredUser();
+      setUser(storedUser);
+
+      // Fetch user's restaurants (get the first one as primary)
+      if (storedUser?.role === 'owner' || storedUser?.role === 'admin') {
+        try {
+          const response = await restaurantApi.getAll();
+          if (response.success && response.data && response.data.length > 0) {
+            // Use the first restaurant as primary
+            setRestaurant(response.data[0]);
+          }
+        } catch (error) {
+          console.error('Failed to fetch restaurants:', error);
+          // Don't show error to user, just log it
+        }
+      }
+    };
+
+    // Only fetch if user is authenticated
+    if (authApi.isAuthenticated()) {
+      fetchUserData();
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    await authApi.logout();
+    router.push('/auth/login');
+  };
+
+  const getUserInitials = () => {
+    if (!user?.fullName) return 'U';
+    return user.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase();
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -128,22 +192,24 @@ export function AppSidebar() {
               <Button variant="ghost" className="w-full justify-start p-3 h-auto hover:bg-sidebar-accent">
                 <div className="flex items-center gap-3 w-full">
                   <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarImage src={data.user.avatar} alt={data.user.name} />
-                    <AvatarFallback>{data.user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                    <AvatarImage src={user?.avatarUrl} alt={user?.fullName} />
+                    <AvatarFallback>{getUserInitials()}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 text-left min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium leading-none truncate">{data.user.name}</p>
+                      <p className="text-sm font-medium leading-none truncate">{user?.fullName || 'User'}</p>
                       <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                     </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Avatar className="h-4 w-4 shrink-0">
-                        <AvatarImage src={data.user.restaurantLogo} alt={data.user.restaurant} />
-                        <AvatarFallback className="text-xs">{data.user.restaurant.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <p className="text-xs text-muted-foreground truncate">{data.user.restaurant}</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1 truncate">{data.user.email}</p>
+                    {restaurant && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <Avatar className="h-4 w-4 shrink-0">
+                          <AvatarImage src={restaurant.logo_url} alt={restaurant.name} />
+                          <AvatarFallback className="text-xs">{restaurant.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <p className="text-xs text-muted-foreground truncate">{restaurant.name}</p>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1 truncate">{user?.email}</p>
                   </div>
                 </div>
               </Button>
@@ -151,16 +217,18 @@ export function AppSidebar() {
             <DropdownMenuContent className="w-56" align="start" side="right" sideOffset={8}>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{data.user.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Avatar className="h-4 w-4">
-                      <AvatarImage src={data.user.restaurantLogo} alt={data.user.restaurant} />
-                      <AvatarFallback className="text-xs">{data.user.restaurant.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <p className="text-xs text-muted-foreground">{data.user.restaurant}</p>
-                  </div>
+                  <p className="text-sm font-medium leading-none">{user?.fullName || 'User'}</p>
+                  {restaurant && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Avatar className="h-4 w-4">
+                        <AvatarImage src={restaurant.logo_url} alt={restaurant.name} />
+                        <AvatarFallback className="text-xs">{restaurant.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <p className="text-xs text-muted-foreground">{restaurant.name}</p>
+                    </div>
+                  )}
                   <p className="text-xs leading-none text-muted-foreground">
-                    {data.user.email}
+                    {user?.email}
                   </p>
                 </div>
               </DropdownMenuLabel>
@@ -182,6 +250,11 @@ export function AppSidebar() {
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Settings</span>
                 </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Logout</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -193,24 +266,26 @@ export function AppSidebar() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-sidebar-accent">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={data.user.avatar} alt={data.user.name} />
-                  <AvatarFallback>{data.user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                  <AvatarImage src={user?.avatarUrl} alt={user?.fullName} />
+                  <AvatarFallback>{getUserInitials()}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="start" side="right" sideOffset={8}>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{data.user.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Avatar className="h-4 w-4">
-                      <AvatarImage src={data.user.restaurantLogo} alt={data.user.restaurant} />
-                      <AvatarFallback className="text-xs">{data.user.restaurant.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <p className="text-xs text-muted-foreground">{data.user.restaurant}</p>
-                  </div>
+                  <p className="text-sm font-medium leading-none">{user?.fullName || 'User'}</p>
+                  {restaurant && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Avatar className="h-4 w-4">
+                        <AvatarImage src={restaurant.logo_url} alt={restaurant.name} />
+                        <AvatarFallback className="text-xs">{restaurant.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <p className="text-xs text-muted-foreground">{restaurant.name}</p>
+                    </div>
+                  )}
                   <p className="text-xs leading-none text-muted-foreground">
-                    {data.user.email}
+                    {user?.email}
                   </p>
                 </div>
               </DropdownMenuLabel>
@@ -233,13 +308,18 @@ export function AppSidebar() {
                   <span>Settings</span>
                 </Link>
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Logout</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </SidebarHeader>
       
       <SidebarContent>
-        {data.navMain.map((group) => (
+        {navMain.map((group) => (
           <SidebarGroup key={group.title}>
             <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
             <SidebarGroupContent>

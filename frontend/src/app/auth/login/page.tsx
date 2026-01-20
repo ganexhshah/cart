@@ -7,42 +7,275 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { authApi } from "@/lib/auth";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [loginMethod, setLoginMethod] = useState<'otp' | 'password'>('otp');
+  const [step, setStep] = useState<'email' | 'otp'>('email');
+  
+  // OTP fields
   const [email, setEmail] = useState("");
+  const [otpCode, setOTPCode] = useState("");
+  
+  // Password fields
+  const [password, setPassword] = useState("");
+  
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // OTP Login Flow
+  const handleSendOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    setLoading(true);
+
+    try {
+      await authApi.sendOTP({ email });
+      setMessage("OTP sent to your email!");
+      setStep("otp");
+    } catch (err: any) {
+      setError(err.message || "Failed to send OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await authApi.verifyOTP({ email, otpCode });
+
+      // Check if new user needs onboarding
+      if (response.data.requiresRegistration || (response.data.isNewUser && !response.data.user)) {
+        router.push('/onboarding?email=' + encodeURIComponent(email) + '&otp=' + otpCode);
+        return;
+      }
+
+      // Existing user - redirect based on role
+      const user = response.data.user;
+      if (user.role === 'owner') {
+        router.push('/dashboard');
+      } else if (user.role === 'waiter') {
+        router.push('/waiter');
+      } else {
+        router.push('/menu');
+      }
+    } catch (err: any) {
+      setError(err.message || "Invalid OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setError("");
+    setMessage("");
+    setLoading(true);
+
+    try {
+      await authApi.sendOTP({ email });
+      setMessage("OTP resent successfully!");
+    } catch (err: any) {
+      setError(err.message || "Failed to resend OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Password Login Flow
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email || !password) {
+      setError("Please fill in all fields");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await authApi.login({ email, password });
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Login failed. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-900 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-2">
           <CardTitle className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-            Welcome back to foodemenu
+            Restaurant Owner Login
           </CardTitle>
           <CardDescription className="text-base">
-            Enter your email to login
+            {loginMethod === 'otp' 
+              ? step === 'email' 
+                ? 'Enter your email to receive OTP' 
+                : 'Enter the code sent to your email'
+              : 'Enter your credentials to access dashboard'
+            }
           </CardDescription>
         </CardHeader>
         
         <CardContent className="space-y-6">
-          {/* Email Form */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full"
-              />
+          {/* Error/Success Message */}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded text-sm">
+              {error}
             </div>
-            
-            <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900">
-              Login
-            </Button>
+          )}
+          {message && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded text-sm">
+              {message}
+            </div>
+          )}
+
+          {/* OTP Login */}
+          {loginMethod === 'otp' && (
+            <>
+              {step === 'email' ? (
+                <form onSubmit={handleSendOTP} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-sm font-medium">
+                      Email
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full"
+                      required
+                    />
+                  </div>
+                  
+                  <Button 
+                    type="submit"
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900"
+                    disabled={loading}
+                  >
+                    {loading ? "Sending..." : "Send OTP"}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyOTP} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="otp" className="text-sm font-medium">
+                      Enter OTP
+                    </Label>
+                    <Input
+                      id="otp"
+                      type="text"
+                      placeholder="123456"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) => setOTPCode(e.target.value.replace(/\D/g, ''))}
+                      required
+                      className="text-center text-2xl tracking-widest"
+                    />
+                    <p className="text-xs text-gray-500">
+                      OTP sent to {email}
+                    </p>
+                  </div>
+                  
+                  <Button 
+                    type="submit"
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900"
+                    disabled={loading}
+                  >
+                    {loading ? "Verifying..." : "Verify OTP"}
+                  </Button>
+
+                  <div className="flex justify-between text-sm">
+                    <button
+                      type="button"
+                      onClick={handleResendOTP}
+                      disabled={loading}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Resend OTP
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStep('email')}
+                      className="text-gray-600 hover:underline"
+                    >
+                      Change email
+                    </button>
+                  </div>
+                </form>
+              )}
+            </>
+          )}
+
+          {/* Password Login */}
+          {loginMethod === 'password' && (
+            <form onSubmit={handlePasswordLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-sm font-medium">
+                  Password
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full"
+                  required
+                />
+              </div>
+              
+              <Button 
+                type="submit"
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900"
+                disabled={loading}
+              >
+                {loading ? "Logging in..." : "Login"}
+              </Button>
+            </form>
+          )}
+
+          {/* Switch Login Method */}
+          <div className="text-center">
+            <button
+              onClick={() => {
+                setLoginMethod(loginMethod === 'otp' ? 'password' : 'otp');
+                setStep('email');
+                setError('');
+                setMessage('');
+              }}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              {loginMethod === 'otp' ? 'Use password instead' : 'Use OTP instead'}
+            </button>
           </div>
 
           {/* Divider */}
@@ -59,6 +292,7 @@ export default function LoginPage() {
           <Button 
             variant="outline" 
             className="w-full flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+            type="button"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path
@@ -81,17 +315,11 @@ export default function LoginPage() {
             Continue with Google
           </Button>
 
-          {/* Signup Link */}
+          {/* New User Info */}
           <div className="text-center">
             <span className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
+              New to our platform? Use OTP login to create your account automatically.
             </span>
-            <Link 
-              href="/auth/signup" 
-              className="text-sm font-medium text-slate-900 hover:text-slate-700 dark:text-slate-100 dark:hover:text-slate-300"
-            >
-              Sign up
-            </Link>
           </div>
 
           {/* Terms and Conditions */}

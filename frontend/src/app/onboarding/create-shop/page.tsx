@@ -7,9 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import Link from "next/link";
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Upload, X, Crop } from "lucide-react";
+import { restaurantApi } from "@/lib/restaurants";
+import { uploadApi } from "@/lib/upload";
 
 export default function CreateShopPage() {
+  const router = useRouter();
   const [shopName, setShopName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [email, setEmail] = useState("");
@@ -17,6 +21,8 @@ export default function CreateShopPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [showCropDialog, setShowCropDialog] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,6 +64,38 @@ export default function CreateShopPage() {
     }
   };
 
+  const handleCreateRestaurant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      let logoUrl = '';
+      
+      // Upload logo if provided
+      if (logoFile) {
+        const uploadResponse = await uploadApi.restaurantLogo(logoFile);
+        logoUrl = uploadResponse.data.url;
+      }
+
+      // Create restaurant
+      await restaurantApi.create({
+        name: shopName,
+        phone: contactNumber,
+        email: email,
+        address: address,
+        logoUrl: logoUrl,
+      } as any);
+
+      // Redirect to dashboard
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Failed to create restaurant');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const isFormValid = shopName.trim() && contactNumber.trim() && email.trim() && address.trim() && logoFile;
 
   return (
@@ -73,129 +111,143 @@ export default function CreateShopPage() {
         </CardHeader>
         
         <CardContent className="space-y-4">
-          {/* Restaurant Name */}
-          <div className="space-y-2">
-            <Label htmlFor="shopName" className="text-sm font-medium">
-              Restaurant Name *
-            </Label>
-            <Input
-              id="shopName"
-              type="text"
-              placeholder="Enter restaurant name"
-              value={shopName}
-              onChange={(e) => setShopName(e.target.value)}
-              className="w-full"
-            />
-          </div>
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded text-sm">
+              {error}
+            </div>
+          )}
 
-          {/* Logo Upload */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
-              Restaurant Logo *
-            </Label>
-            
-            {!logoPreview ? (
-              <div
-                className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-6 text-center cursor-pointer hover:border-slate-400 dark:hover:border-slate-500 transition-colors"
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="w-6 h-6 text-slate-400 mx-auto mb-2" />
-                <p className="text-xs font-medium text-slate-900 dark:text-slate-100 mb-1">
-                  Click to upload or drag and drop
-                </p>
-                <p className="text-xs text-slate-500">
-                  PNG, JPG, GIF up to 20MB
-                </p>
-              </div>
-            ) : (
-              <div className="relative border rounded-lg p-3 bg-slate-50 dark:bg-slate-800">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={logoPreview}
-                    alt="Logo preview"
-                    className="w-12 h-12 object-cover rounded-lg"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
-                      {logoFile?.name}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {logoFile && (logoFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={removeLogo}
-                    className="text-slate-500 hover:text-slate-700 p-1"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
+          <form onSubmit={handleCreateRestaurant} className="space-y-4">
+            {/* Restaurant Name */}
+            <div className="space-y-2">
+              <Label htmlFor="shopName" className="text-sm font-medium">
+                Restaurant Name *
+              </Label>
+              <Input
+                id="shopName"
+                type="text"
+                placeholder="Enter restaurant name"
+                value={shopName}
+                onChange={(e) => setShopName(e.target.value)}
+                className="w-full"
+                required
+              />
+            </div>
+
+            {/* Logo Upload */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                Restaurant Logo *
+              </Label>
+              
+              {!logoPreview ? (
+                <div
+                  className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-6 text-center cursor-pointer hover:border-slate-400 dark:hover:border-slate-500 transition-colors"
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="w-6 h-6 text-slate-400 mx-auto mb-2" />
+                  <p className="text-xs font-medium text-slate-900 dark:text-slate-100 mb-1">
+                    Click to upload or drag and drop
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    PNG, JPG, GIF up to 20MB
+                  </p>
                 </div>
-              </div>
-            )}
-            
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-          </div>
+              ) : (
+                <div className="relative border rounded-lg p-3 bg-slate-50 dark:bg-slate-800">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={logoPreview}
+                      alt="Logo preview"
+                      className="w-12 h-12 object-cover rounded-lg"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                        {logoFile?.name}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {logoFile && (logoFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={removeLogo}
+                      type="button"
+                      className="text-slate-500 hover:text-slate-700 p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </div>
 
-          {/* Contact Information */}
-          <div className="space-y-2">
-            <Label htmlFor="contactNumber" className="text-sm font-medium">
-              Contact Number *
-            </Label>
-            <Input
-              id="contactNumber"
-              type="tel"
-              placeholder="Enter contact number"
-              value={contactNumber}
-              onChange={(e) => setContactNumber(e.target.value)}
-              className="w-full"
-            />
-          </div>
+            {/* Contact Information */}
+            <div className="space-y-2">
+              <Label htmlFor="contactNumber" className="text-sm font-medium">
+                Contact Number *
+              </Label>
+              <Input
+                id="contactNumber"
+                type="tel"
+                placeholder="Enter contact number"
+                value={contactNumber}
+                onChange={(e) => setContactNumber(e.target.value)}
+                className="w-full"
+                required
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium">
-              Email Address *
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="Enter email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full"
-            />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium">
+                Email Address *
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full"
+                required
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="address" className="text-sm font-medium">
-              Restaurant Address *
-            </Label>
-            <Input
-              id="address"
-              type="text"
-              placeholder="Enter restaurant address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full"
-            />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="address" className="text-sm font-medium">
+                Restaurant Address *
+              </Label>
+              <Input
+                id="address"
+                type="text"
+                placeholder="Enter restaurant address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full"
+                required
+              />
+            </div>
 
-          {/* Create Button */}
-          <Button 
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900"
-            disabled={!isFormValid}
-          >
-            Create Restaurant
-          </Button>
+            {/* Create Button */}
+            <Button 
+              type="submit"
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900"
+              disabled={!isFormValid || loading}
+            >
+              {loading ? 'Creating...' : 'Create Restaurant'}
+            </Button>
+          </form>
 
           {/* Terms */}
           <div className="text-center text-xs text-slate-500 leading-relaxed">
@@ -252,11 +304,13 @@ export default function CreateShopPage() {
                     setShowCropDialog(false);
                     removeLogo();
                   }}
+                  type="button"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={() => setShowCropDialog(false)}
+                  type="button"
                   className="bg-slate-900 hover:bg-slate-800 text-white"
                 >
                   <Crop className="w-4 h-4 mr-2" />

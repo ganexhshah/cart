@@ -9,7 +9,6 @@ import {
   TrendingDown,
   Users, 
   ShoppingCart, 
-  DollarSign,
   Clock,
   Star,
   Target,
@@ -28,7 +27,7 @@ export default function InsightsPage() {
       change: "+4.2%",
       trend: "up",
       period: "vs last month",
-      icon: DollarSign,
+      icon: () => <span className="text-green-600 text-lg font-bold">₹</span>,
       color: "text-green-600"
     },
     {
@@ -51,7 +50,7 @@ export default function InsightsPage() {
     },
     {
       title: "Avg Order Value",
-      value: "$42.85",
+      value: "₹42.85",
       change: "+8.7%",
       trend: "up",
       period: "vs last month",
@@ -148,7 +147,7 @@ export default function InsightsPage() {
                         <div className="flex-1">
                           <div className="flex justify-between text-xs mb-1">
                             <span>Orders: {day.orders}</span>
-                            <span>Revenue: ${day.revenue}</span>
+                            <span>Revenue: ₹{day.revenue}</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div 
@@ -185,7 +184,7 @@ export default function InsightsPage() {
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
                         <div>Orders: {restaurant.orders}</div>
-                        <div>Revenue: ${restaurant.revenue}</div>
+                        <div>Revenue: ₹{restaurant.revenue}</div>
                         <div className="flex items-center gap-1">
                           <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                           {restaurant.rating}
@@ -234,7 +233,7 @@ export default function InsightsPage() {
                       <div>
                         <div className="font-medium">{item.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {item.orders} orders • ${item.revenue} revenue
+                          {item.orders} orders • ₹{item.revenue} revenue
                         </div>
                       </div>
                     </div>
