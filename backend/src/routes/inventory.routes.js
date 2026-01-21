@@ -3,7 +3,13 @@ const router = express.Router();
 const inventoryController = require('../controllers/inventory.controller');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 
-// Apply authentication to all routes
+// Test routes without authentication (for development)
+router.get('/test/materials', inventoryController.getRawMaterials);
+router.get('/test/transactions', inventoryController.getStockTransactions);
+router.get('/test/alerts', inventoryController.getStockAlerts);
+router.get('/test/summary', inventoryController.getInventorySummary);
+
+// Apply authentication to all other routes
 router.use(authenticate);
 
 // Raw materials routes

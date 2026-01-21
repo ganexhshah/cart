@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DashboardLayout } from "@/components/dashboard/layout";
 import { useState } from "react";
+import { useSuppliers, usePurchaseOrders, usePurchaseHistory, useCostTracking } from "@/hooks/usePurchases";
 import { 
   Truck, 
   Users, 
@@ -27,148 +28,21 @@ import {
   Phone,
   Mail,
   MapPin,
-  Star
+  Star,
+  Loader2
 } from "lucide-react";
 
-interface Supplier {
-  id: string;
-  name: string;
-  contactPerson: string;
-  phone: string;
-  email: string;
-  address: string;
-  businessType: string;
-  paymentTerms: string;
-  rating: number;
-  isActive: boolean;
-  totalOrders: number;
-  avgOrderValue: number;
-}
-
-interface PurchaseOrder {
-  id: string;
-  poNumber: string;
-  supplierName: string;
-  orderDate: string;
-  expectedDeliveryDate: string;
-  status: string;
-  paymentStatus: string;
-  subtotal: number;
-  taxAmount: number;
-  totalAmount: number;
-  itemCount: number;
-  createdBy: string;
-}
-
 export default function PurchasesPage() {
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
-  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [selectedPO, setSelectedPO] = useState<any>(null);
   const [showSupplierDialog, setShowSupplierDialog] = useState(false);
   const [showPODialog, setShowPODialog] = useState(false);
 
-  // Mock data
-  const suppliers = [
-    {
-      id: "1",
-      name: "Fresh Dairy Co.",
-      contactPerson: "Ram Sharma",
-      phone: "9841234567",
-      email: "ram@freshdairy.com",
-      address: "Kathmandu, Nepal",
-      businessType: "distributor",
-      paymentTerms: "credit_30",
-      rating: 4.5,
-      isActive: true,
-      totalOrders: 24,
-      avgOrderValue: 15000
-    },
-    {
-      id: "2",
-      name: "Mountain Coffee Suppliers",
-      contactPerson: "Sita Gurung",
-      phone: "9851234567",
-      email: "sita@mountaincoffee.com",
-      address: "Pokhara, Nepal",
-      businessType: "wholesaler",
-      paymentTerms: "cash",
-      rating: 4.8,
-      isActive: true,
-      totalOrders: 18,
-      avgOrderValue: 25000
-    },
-    {
-      id: "3",
-      name: "Valley Vegetables",
-      contactPerson: "Hari Thapa",
-      phone: "9861234567",
-      email: "hari@valleyveggies.com",
-      address: "Lalitpur, Nepal",
-      businessType: "farmer",
-      paymentTerms: "cash",
-      rating: 4.2,
-      isActive: true,
-      totalOrders: 32,
-      avgOrderValue: 8000
-    }
-  ];
-
-  const purchaseOrders = [
-    {
-      id: "1",
-      poNumber: "PO-202501-0001",
-      supplierName: "Fresh Dairy Co.",
-      orderDate: "2025-01-21",
-      expectedDeliveryDate: "2025-01-23",
-      status: "confirmed",
-      paymentStatus: "pending",
-      subtotal: 15000,
-      taxAmount: 1950,
-      totalAmount: 16950,
-      itemCount: 3,
-      createdBy: "John Doe"
-    },
-    {
-      id: "2",
-      poNumber: "PO-202501-0002",
-      supplierName: "Mountain Coffee Suppliers",
-      orderDate: "2025-01-20",
-      expectedDeliveryDate: "2025-01-22",
-      status: "received",
-      paymentStatus: "paid",
-      subtotal: 25000,
-      taxAmount: 3250,
-      totalAmount: 28250,
-      itemCount: 2,
-      createdBy: "Jane Smith"
-    }
-  ];
-
-  const purchaseHistory = [
-    {
-      id: "1",
-      poNumber: "PO-202501-0001",
-      supplierName: "Fresh Dairy Co.",
-      materialName: "Milk",
-      quantityOrdered: 50,
-      quantityReceived: 50,
-      unitPrice: 50.00,
-      totalPrice: 2500.00,
-      orderDate: "2025-01-21",
-      status: "received"
-    },
-    {
-      id: "2",
-      poNumber: "PO-202501-0001",
-      supplierName: "Fresh Dairy Co.",
-      materialName: "Cheese",
-      quantityOrdered: 10,
-      quantityReceived: 10,
-      unitPrice: 800.00,
-      totalPrice: 8000.00,
-      orderDate: "2025-01-21",
-      status: "received"
-    }
-  ];
+  // API hooks
+  const { suppliers, loading: suppliersLoading, error: suppliersError, createSupplier } = useSuppliers();
+  const { orders, loading: ordersLoading, error: ordersError, createOrder, updateOrderStatus, receiveItems } = usePurchaseOrders();
+  const { history, loading: historyLoading, error: historyError } = usePurchaseHistory();
+  const { costData, loading: costLoading, error: costError } = useCostTracking();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -199,14 +73,22 @@ export default function PurchasesPage() {
     }
   };
 
-  const handleAddSupplier = (supplierData: any) => {
-    console.log("Adding supplier:", supplierData);
-    setShowSupplierDialog(false);
+  const handleAddSupplier = async (supplierData: any) => {
+    try {
+      await createSupplier(supplierData);
+      setShowSupplierDialog(false);
+    } catch (error) {
+      console.error("Error adding supplier:", error);
+    }
   };
 
-  const handleCreatePO = (poData: any) => {
-    console.log("Creating PO:", poData);
-    setShowPODialog(false);
+  const handleCreatePO = async (poData: any) => {
+    try {
+      await createOrder(poData);
+      setShowPODialog(false);
+    } catch (error) {
+      console.error("Error creating PO:", error);
+    }
   };
 
   const renderStars = (rating: number) => {
@@ -251,80 +133,92 @@ export default function PurchasesPage() {
               <CardDescription>Manage your purchase orders and deliveries</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {purchaseOrders.map((po) => {
-                  const StatusIcon = getStatusIcon(po.status);
-                  return (
-                    <div key={po.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-blue-100 rounded-lg">
-                            <FileText className="w-5 h-5 text-blue-600" />
+              {ordersLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                  Loading purchase orders...
+                </div>
+              ) : ordersError ? (
+                <div className="text-center py-8 text-red-600">
+                  Error: {ordersError}
+                </div>
+              ) : orders.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No purchase orders found. Create your first purchase order to get started.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {orders.map((po: any) => {
+                    const StatusIcon = getStatusIcon(po.status);
+                    return (
+                      <div key={po.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-100 rounded-lg">
+                              <FileText className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-medium">{po.poNumber}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {po.supplierName} • {po.itemCount || 0} items
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className={getStatusColor(po.status)}>
+                              <StatusIcon className="w-3 h-3 mr-1" />
+                              {po.status}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Order Date</p>
+                            <p className="font-medium">{new Date(po.orderDate).toLocaleDateString()}</p>
                           </div>
                           <div>
-                            <h3 className="font-medium">{po.poNumber}</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {po.supplierName} • {po.itemCount} items
-                            </p>
+                            <p className="text-sm text-muted-foreground">Expected Delivery</p>
+                            <p className="font-medium">{new Date(po.expectedDeliveryDate).toLocaleDateString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Subtotal</p>
+                            <p className="font-medium">₹{po.subtotal.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Total Amount</p>
+                            <p className="font-semibold text-lg">₹{po.totalAmount.toLocaleString()}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getStatusColor(po.status)}>
-                            <StatusIcon className="w-3 h-3 mr-1" />
-                            {po.status}
-                          </Badge>
-                          <Badge className={getPaymentStatusColor(po.paymentStatus)}>
-                            {po.paymentStatus}
-                          </Badge>
-                        </div>
-                      </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Order Date</p>
-                          <p className="font-medium">{new Date(po.orderDate).toLocaleDateString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Expected Delivery</p>
-                          <p className="font-medium">{new Date(po.expectedDeliveryDate).toLocaleDateString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Subtotal</p>
-                          <p className="font-medium">₹{po.subtotal.toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Total Amount</p>
-                          <p className="font-semibold text-lg">₹{po.totalAmount.toLocaleString()}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-3 border-t">
-                        <p className="text-sm text-muted-foreground">
-                          Created by {po.createdBy}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm">
-                            <Eye className="w-4 h-4 mr-2" />
-                            View Details
-                          </Button>
-                          {po.status === "draft" && (
+                        <div className="flex items-center justify-between pt-3 border-t">
+                          <p className="text-sm text-muted-foreground">
+                            Created by {po.createdByName || po.createdBy}
+                          </p>
+                          <div className="flex items-center gap-2">
                             <Button variant="outline" size="sm">
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Details
                             </Button>
-                          )}
-                          {po.status === "confirmed" && (
-                            <Button size="sm">
-                              <Truck className="w-4 h-4 mr-2" />
-                              Mark Received
-                            </Button>
-                          )}
+                            {po.status === "draft" && (
+                              <Button variant="outline" size="sm">
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </Button>
+                            )}
+                            {po.status === "confirmed" && (
+                              <Button size="sm" onClick={() => updateOrderStatus(po.id, "received")}>
+                                <Truck className="w-4 h-4 mr-2" />
+                                Mark Received
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -336,83 +230,98 @@ export default function PurchasesPage() {
               <CardDescription>Manage your supplier relationships</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {suppliers.map((supplier) => (
-                  <div key={supplier.id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-100 rounded-lg">
-                          <Users className="w-5 h-5 text-green-600" />
+              {suppliersLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                  Loading suppliers...
+                </div>
+              ) : suppliersError ? (
+                <div className="text-center py-8 text-red-600">
+                  Error: {suppliersError}
+                </div>
+              ) : suppliers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No suppliers found. Add your first supplier to get started.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {suppliers.map((supplier: any) => (
+                    <div key={supplier.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-green-100 rounded-lg">
+                            <Users className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium">{supplier.name}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {supplier.contactPerson} • {supplier.businessType}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center">
+                            {renderStars(Math.round(supplier.rating || 0))}
+                            <span className="ml-1 text-sm text-muted-foreground">
+                              {supplier.rating || 0}
+                            </span>
+                          </div>
+                          <Badge className={supplier.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                            {supplier.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm">{supplier.phone}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm">{supplier.email}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm">{supplier.address}</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Total Orders</p>
+                          <p className="font-medium">{supplier.totalOrders || 0}</p>
                         </div>
                         <div>
-                          <h3 className="font-medium">{supplier.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {supplier.contactPerson} • {supplier.businessType}
-                          </p>
+                          <p className="text-sm text-muted-foreground">Avg Order Value</p>
+                          <p className="font-medium">₹{(supplier.avgOrderValue || 0).toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Payment Terms</p>
+                          <p className="font-medium capitalize">{supplier.paymentTerms?.replace('_', ' ') || 'N/A'}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center">
-                          {renderStars(Math.round(supplier.rating))}
-                          <span className="ml-1 text-sm text-muted-foreground">
-                            {supplier.rating}
-                          </span>
+
+                      <div className="flex items-center justify-between pt-3 border-t">
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm">
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Details
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </Button>
                         </div>
-                        <Badge className={supplier.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
-                          {supplier.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm">{supplier.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm">{supplier.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm">{supplier.address}</span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Orders</p>
-                        <p className="font-medium">{supplier.totalOrders}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Avg Order Value</p>
-                        <p className="font-medium">₹{supplier.avgOrderValue.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Payment Terms</p>
-                        <p className="font-medium capitalize">{supplier.paymentTerms.replace('_', ' ')}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t">
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm">
-                          <Eye className="w-4 h-4 mr-2" />
-                          View Details
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit
+                        <Button size="sm">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create PO
                         </Button>
                       </div>
-                      <Button size="sm">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create PO
-                      </Button>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -424,52 +333,67 @@ export default function PurchasesPage() {
               <CardDescription>Track all your purchase transactions</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {purchaseHistory.map((item) => (
-                  <div key={item.id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-purple-100 rounded-lg">
-                          <ShoppingCart className="w-5 h-5 text-purple-600" />
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                  Loading purchase history...
+                </div>
+              ) : historyError ? (
+                <div className="text-center py-8 text-red-600">
+                  Error: {historyError}
+                </div>
+              ) : history.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No purchase history found.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {history.map((item: any) => (
+                    <div key={item.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-purple-100 rounded-lg">
+                            <ShoppingCart className="w-5 h-5 text-purple-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium">{item.materialName || item.itemName}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {item.poNumber} • {item.supplierName}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-medium">{item.materialName}</h3>
+                        <div className="text-right">
+                          <p className="font-medium">₹{(item.totalPrice || item.totalAmount || 0).toLocaleString()}</p>
                           <p className="text-sm text-muted-foreground">
-                            {item.poNumber} • {item.supplierName}
+                            {new Date(item.orderDate).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">₹{item.totalPrice.toLocaleString()}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(item.orderDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Ordered</p>
-                        <p className="font-medium">{item.quantityOrdered}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Received</p>
-                        <p className="font-medium">{item.quantityReceived}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Unit Price</p>
-                        <p className="font-medium">₹{item.unitPrice}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Status</p>
-                        <Badge className={getStatusColor(item.status)}>
-                          {item.status}
-                        </Badge>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">Ordered</p>
+                          <p className="font-medium">{item.quantityOrdered || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Received</p>
+                          <p className="font-medium">{item.quantityReceived || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Unit Price</p>
+                          <p className="font-medium">₹{item.unitPrice || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Status</p>
+                          <Badge className={getStatusColor(item.status)}>
+                            {item.status}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -482,48 +406,59 @@ export default function PurchasesPage() {
                 <CardDescription>Track material cost changes over time</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Select defaultValue="milk">
-                      <SelectTrigger className="w-48">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="milk">Milk</SelectItem>
-                        <SelectItem value="coffee">Coffee Beans</SelectItem>
-                        <SelectItem value="sugar">Sugar</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button variant="outline">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Last 30 Days
-                    </Button>
+                {costLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                    Loading cost data...
                   </div>
-                  
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-green-600" />
-                        <span className="text-sm">Current Price</span>
-                      </div>
-                      <span className="font-medium">₹50.00/liter</span>
+                ) : costError ? (
+                  <div className="text-center py-8 text-red-600">
+                    Error: {costError}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Select defaultValue="milk">
+                        <SelectTrigger className="w-48">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="milk">Milk</SelectItem>
+                          <SelectItem value="coffee">Coffee Beans</SelectItem>
+                          <SelectItem value="sugar">Sugar</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button variant="outline">
+                        <Calendar className="w-4 h-4 mr-2" />
+                        Last 30 Days
+                      </Button>
                     </div>
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <TrendingDown className="w-4 h-4 text-red-600" />
-                        <span className="text-sm">Last Month</span>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-green-600" />
+                          <span className="text-sm">Current Price</span>
+                        </div>
+                        <span className="font-medium">₹50.00/liter</span>
                       </div>
-                      <span className="font-medium">₹48.00/liter</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-blue-600" />
-                        <span className="text-sm">Average (3 months)</span>
+                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <TrendingDown className="w-4 h-4 text-red-600" />
+                          <span className="text-sm">Last Month</span>
+                        </div>
+                        <span className="font-medium">₹48.00/liter</span>
                       </div>
-                      <span className="font-medium">₹49.50/liter</span>
+                      <div className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm">Average (3 months)</span>
+                        </div>
+                        <span className="font-medium">₹49.50/liter</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -533,27 +468,38 @@ export default function PurchasesPage() {
                 <CardDescription>Compare supplier metrics</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {suppliers.slice(0, 3).map((supplier) => (
-                    <div key={supplier.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{supplier.name}</p>
-                        <div className="flex items-center gap-1">
-                          {renderStars(Math.round(supplier.rating))}
-                          <span className="text-sm text-muted-foreground ml-1">
-                            ({supplier.rating})
-                          </span>
+                {suppliersLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                    Loading suppliers...
+                  </div>
+                ) : suppliers.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No suppliers found.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {suppliers.slice(0, 3).map((supplier: any) => (
+                      <div key={supplier.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">{supplier.name}</p>
+                          <div className="flex items-center gap-1">
+                            {renderStars(Math.round(supplier.rating || 0))}
+                            <span className="text-sm text-muted-foreground ml-1">
+                              ({supplier.rating || 0})
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{supplier.totalOrders || 0} orders</p>
+                          <p className="text-sm text-muted-foreground">
+                            ₹{(supplier.avgOrderValue || 0).toLocaleString()} avg
+                          </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">{supplier.totalOrders} orders</p>
-                        <p className="text-sm text-muted-foreground">
-                          ₹{supplier.avgOrderValue.toLocaleString()} avg
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

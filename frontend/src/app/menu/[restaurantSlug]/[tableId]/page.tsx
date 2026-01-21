@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { RestaurantHeader } from "@/components/customer/restaurant-header";
+import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 import { menuApi, MenuItem, MenuCategory } from "@/lib/menu";
 import { restaurantApi } from "@/lib/restaurants";
 import { tableApi } from "@/lib/tables";
@@ -22,7 +24,16 @@ import {
   MapPin,
   Users,
   AlertCircle,
-  Loader2
+  Loader2,
+  Search,
+  Filter,
+  Heart,
+  Leaf,
+  Flame,
+  X,
+  ChefHat,
+  Phone,
+  Info
 } from "lucide-react";
 
 interface Restaurant {
@@ -66,8 +77,12 @@ export default function RestaurantMenuPage() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCart, setShowCart] = useState(false);
 
   // Load restaurant and menu data
   useEffect(() => {
@@ -84,22 +99,7 @@ export default function RestaurantMenuPage() {
       if (!restaurantResponse.success) {
         throw new Error('Restaurant not found');
       }
-      setRestaurant(restaurantResponse.data);
-
-      // Load table information
-      let tableData;
-      if (tableId === 'demo-table') {
-        // Create a demo table for menu preview
-        tableData = {
-          id: 'demo-table',
-          table_number: 'DEMO',
-          name: 'Demo Table',
-          capacity: 4,
-          location: 'Preview Mode',
-          restaurant_id: restaurantResponse.data.id,
-          restaurant_name: restaurantResponse.data.name
-        };
-      } else {
+      setlse {
         const tableResponse = await tableApi.getTable(tableId);
         if (!tableResponse.success) {
           throw new Error('Table not found');

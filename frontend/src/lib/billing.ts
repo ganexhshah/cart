@@ -72,7 +72,8 @@ export const getBills = async (params?: {
   page?: number;
   limit?: number;
 }) => {
-  const response = await api.get('/billing/bills', { params });
+  // Use test endpoint for now
+  const response = await api.get('/billing/test/bills', { params });
   return response.data;
 };
 
@@ -148,7 +149,8 @@ export const sendBillWhatsApp = async (billId: string, phoneNumber: string) => {
 
 // Get bill settings
 export const getBillSettings = async () => {
-  const response = await api.get('/billing/settings');
+  // Use test endpoint for now
+  const response = await api.get('/billing/test/settings');
   return response.data;
 };
 
@@ -164,7 +166,8 @@ export const getPaymentSummary = async (params?: {
   endDate?: string;
   paymentMethod?: string;
 }) => {
-  const response = await api.get('/billing/payments/summary', { params });
+  // Use test endpoint for now
+  const response = await api.get('/billing/test/payments/summary', { params });
   return response.data;
 };
 

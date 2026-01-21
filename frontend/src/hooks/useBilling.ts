@@ -9,21 +9,27 @@ export const useBills = (params?: {
   page?: number;
   limit?: number;
 }) => {
-  const [bills, setBills] = useState([]);
+  const [bills, setBills] = useState<billingApi.Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchBills = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await billingApi.getBills(params);
       if (response.success) {
         setBills(response.data);
       } else {
         setError(response.message || 'Failed to fetch bills');
       }
-    } catch (err) {
-      setError('Failed to fetch bills');
+    } catch (err: any) {
+      // Handle authentication errors gracefully
+      if (err.message?.includes('authentication') || err.message?.includes('unauthorized')) {
+        setError('Please log in to view bills');
+      } else {
+        setError('Failed to fetch bills');
+      }
       console.error('Error fetching bills:', err);
     } finally {
       setLoading(false);
@@ -144,14 +150,20 @@ export const useBillSettings = () => {
   const fetchSettings = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await billingApi.getBillSettings();
       if (response.success) {
         setSettings(response.data);
       } else {
         setError(response.message || 'Failed to fetch settings');
       }
-    } catch (err) {
-      setError('Failed to fetch settings');
+    } catch (err: any) {
+      // Handle authentication errors gracefully
+      if (err.message?.includes('authentication') || err.message?.includes('unauthorized')) {
+        setError('Please log in to view settings');
+      } else {
+        setError('Failed to fetch settings');
+      }
       console.error('Error fetching settings:', err);
     } finally {
       setLoading(false);
@@ -198,14 +210,20 @@ export const usePaymentSummary = (params?: {
   const fetchSummary = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await billingApi.getPaymentSummary(params);
       if (response.success) {
         setSummary(response.data);
       } else {
         setError(response.message || 'Failed to fetch payment summary');
       }
-    } catch (err) {
-      setError('Failed to fetch payment summary');
+    } catch (err: any) {
+      // Handle authentication errors gracefully
+      if (err.message?.includes('authentication') || err.message?.includes('unauthorized')) {
+        setError('Please log in to view payment summary');
+      } else {
+        setError('Failed to fetch payment summary');
+      }
       console.error('Error fetching payment summary:', err);
     } finally {
       setLoading(false);

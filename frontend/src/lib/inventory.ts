@@ -69,7 +69,8 @@ export const getRawMaterials = async (params?: {
   page?: number;
   limit?: number;
 }) => {
-  const response = await api.get('/inventory/materials', { params });
+  // Use test endpoint for now
+  const response = await api.get('/inventory/test/materials', { params });
   return response.data;
 };
 
@@ -138,7 +139,8 @@ export const getStockTransactions = async (params?: {
   page?: number;
   limit?: number;
 }) => {
-  const response = await api.get('/inventory/transactions', { params });
+  // Use test endpoint for now
+  const response = await api.get('/inventory/test/transactions', { params });
   return response.data;
 };
 
@@ -149,7 +151,8 @@ export const getStockAlerts = async (params?: {
   page?: number;
   limit?: number;
 }) => {
-  const response = await api.get('/inventory/alerts', { params });
+  // Use test endpoint for now
+  const response = await api.get('/inventory/test/alerts', { params });
   return response.data;
 };
 
@@ -183,7 +186,8 @@ export const recordDailyUsage = async (usageData: Array<{
 
 // Get inventory summary
 export const getInventorySummary = async () => {
-  const response = await api.get('/inventory/summary');
+  // Use test endpoint for now
+  const response = await api.get('/inventory/test/summary');
   return response.data;
 };
 

@@ -3,7 +3,12 @@ const router = express.Router();
 const billingController = require('../controllers/billing.controller');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 
-// Apply authentication to all routes
+// Test routes without authentication (for development)
+router.get('/test/bills', billingController.getBills);
+router.get('/test/payments/summary', billingController.getPaymentSummary);
+router.get('/test/settings', billingController.getTaxSettings);
+
+// Apply authentication to all other routes
 router.use(authenticate);
 
 // Bill routes
