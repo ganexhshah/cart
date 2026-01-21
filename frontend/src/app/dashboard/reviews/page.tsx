@@ -9,116 +9,41 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DashboardLayout } from "@/components/dashboard/layout";
+import { useMyRestaurantReviews, useMyRestaurantReviewStats } from "@/hooks/useReviews";
+import { useState } from "react";
 import { 
   Star, 
   Search, 
   Filter,
   MessageSquare,
   ThumbsUp,
-  ThumbsDown,
   Reply,
   MoreHorizontal,
   TrendingUp,
   AlertCircle,
   CheckCircle,
-  Clock
+  Clock,
+  Loader2
 } from "lucide-react";
 
 export default function ReviewsPage() {
-  // Mock reviews data
-  const reviews = [
-    {
-      id: 1,
-      customer: {
-        name: "John Doe",
-        avatar: "/api/placeholder/40/40",
-        verified: true
-      },
-      restaurant: "Pizza Palace",
-      rating: 5,
-      title: "Amazing pizza and great service!",
-      content: "The margherita pizza was absolutely delicious. Fresh ingredients, perfect crust, and delivered hot. Will definitely order again!",
-      date: "2024-01-10",
-      helpful: 12,
-      status: "published",
-      response: null,
-      orderValue: 45.99
-    },
-    {
-      id: 2,
-      customer: {
-        name: "Jane Smith",
-        avatar: "/api/placeholder/40/40",
-        verified: true
-      },
-      restaurant: "Burger Barn",
-      rating: 4,
-      title: "Good food, slow delivery",
-      content: "The burger was tasty and well-prepared, but the delivery took longer than expected. Food was still warm though.",
-      date: "2024-01-09",
-      helpful: 8,
-      status: "published",
-      response: {
-        content: "Thank you for your feedback! We're working on improving our delivery times. Glad you enjoyed the burger!",
-        date: "2024-01-09",
-        author: "Restaurant Manager"
-      },
-      orderValue: 32.50
-    },
-    {
-      id: 3,
-      customer: {
-        name: "Mike Johnson",
-        avatar: "/api/placeholder/40/40",
-        verified: false
-      },
-      restaurant: "Sushi Spot",
-      rating: 2,
-      title: "Disappointing experience",
-      content: "The sushi wasn't fresh and the rice was too dry. Expected much better quality for the price.",
-      date: "2024-01-08",
-      helpful: 3,
-      status: "pending",
-      response: null,
-      orderValue: 78.25
-    },
-    {
-      id: 4,
-      customer: {
-        name: "Sarah Wilson",
-        avatar: "/api/placeholder/40/40",
-        verified: true
-      },
-      restaurant: "Pizza Palace",
-      rating: 5,
-      title: "Perfect dinner!",
-      content: "Ordered for a family dinner and everyone loved it. The pasta was creamy and the pizza was crispy. Excellent service!",
-      date: "2024-01-07",
-      helpful: 15,
-      status: "published",
-      response: {
-        content: "We're so happy to hear your family enjoyed the meal! Thank you for choosing us for your special dinner.",
-        date: "2024-01-07",
-        author: "Restaurant Manager"
-      },
-      orderValue: 89.75
-    }
-  ];
-
-  const reviewStats = {
-    totalReviews: reviews.length,
-    averageRating: reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length,
-    pendingReviews: reviews.filter(r => r.status === "pending").length,
-    responseRate: (reviews.filter(r => r.response).length / reviews.length) * 100
-  };
-
-  const ratingDistribution = [
-    { stars: 5, count: 45, percentage: 60 },
-    { stars: 4, count: 18, percentage: 24 },
-    { stars: 3, count: 8, percentage: 11 },
-    { stars: 2, count: 3, percentage: 4 },
-    { stars: 1, count: 1, percentage: 1 }
-  ];
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [responseContent, setResponseContent] = useState<{ [key: string]: string }>({});
+  
+  // Fetch reviews and stats using hooks
+  const { stats, loading: statsLoading, error: statsError } = useMyRestaurantReviewStats();
+  const { 
+    reviews, 
+    loading: reviewsLoading, 
+    error: reviewsError, 
+    addResponse, 
+    updateReviewStatus,
+    refetch 
+  } = useMyRestaurantReviews({
+    search: searchTerm || undefined,
+    status: statusFilter || undefined
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -140,6 +65,66 @@ export default function ReviewsPage() {
     ));
   };
 
+  const handleAddResponse = async (reviewId: string) => {
+    const content = responseContent[reviewId];
+    if (!content || content.trim().length === 0) {
+      alert("Please enter a response");
+      return;
+    }
+
+    try {
+      await addResponse(reviewId, { content: content.trim() });
+      setResponseContent({ ...responseContent, [reviewId]: "" });
+      alert("Response added successfully!");
+    } catch (error) {
+      alert("Failed to add response: " + (error instanceof Error ? error.message : "Unknown error"));
+    }
+  };
+
+  const handleStatusUpdate = async (reviewId: string, newStatus: string) => {
+    try {
+      await updateReviewStatus(reviewId, newStatus);
+      alert("Review status updated successfully!");
+    } catch (error) {
+      alert("Failed to update status: " + (error instanceof Error ? error.message : "Unknown error"));
+    }
+  };
+
+  // Loading state
+  if (statsLoading || reviewsLoading) {
+    return (
+      <DashboardLayout title="Reviews & Ratings">
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Loading reviews...</span>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Error state
+  if (statsError || reviewsError) {
+    return (
+      <DashboardLayout title="Reviews & Ratings">
+        <Card>
+          <CardContent className="py-12">
+            <div className="text-center">
+              <p className="text-red-600 mb-4">{statsError || reviewsError}</p>
+              <Button onClick={() => { refetch(); }} variant="outline">
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </DashboardLayout>
+    );
+  }
+
+  const pendingReviews = reviews.filter(r => r.status === "pending");
+  const ratingDistribution = stats?.rating_distribution || [];
+
   return (
     <DashboardLayout title="Reviews & Ratings">
       {/* Stats Cards */}
@@ -150,9 +135,9 @@ export default function ReviewsPage() {
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{reviewStats.totalReviews}</div>
+            <div className="text-2xl font-bold">{stats?.total_reviews || 0}</div>
             <p className="text-xs text-muted-foreground">
-              +12 from last month
+              All time reviews
             </p>
           </CardContent>
         </Card>
@@ -163,9 +148,9 @@ export default function ReviewsPage() {
             <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{reviewStats.averageRating.toFixed(1)}</div>
+            <div className="text-2xl font-bold">{Number(stats?.average_rating || 0).toFixed(1)}</div>
             <div className="flex items-center gap-1">
-              {renderStars(Math.round(reviewStats.averageRating))}
+              {renderStars(Math.round(Number(stats?.average_rating || 0)))}
             </div>
           </CardContent>
         </Card>
@@ -176,7 +161,7 @@ export default function ReviewsPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{reviewStats.pendingReviews}</div>
+            <div className="text-2xl font-bold">{stats?.pending_reviews || 0}</div>
             <p className="text-xs text-muted-foreground">
               Need response
             </p>
@@ -189,9 +174,9 @@ export default function ReviewsPage() {
             <Reply className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{reviewStats.responseRate.toFixed(0)}%</div>
+            <div className="text-2xl font-bold">{Number(stats?.response_rate || 0).toFixed(0)}%</div>
             <p className="text-xs text-muted-foreground">
-              +5% from last month
+              Reviews with responses
             </p>
           </CardContent>
         </Card>
@@ -202,7 +187,7 @@ export default function ReviewsPage() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="reviews">All Reviews</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="pending">Pending ({reviewStats.pendingReviews})</TabsTrigger>
+          <TabsTrigger value="pending">Pending ({pendingReviews.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="reviews">
@@ -220,6 +205,8 @@ export default function ReviewsPage() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input
                       placeholder="Search reviews..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 w-full sm:w-64"
                     />
                   </div>
@@ -238,22 +225,26 @@ export default function ReviewsPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={review.customer.avatar} alt={review.customer.name} />
-                          <AvatarFallback>{review.customer.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                          <AvatarImage src={review.customer_avatar} alt={review.customer_name} />
+                          <AvatarFallback>{review.customer_name?.split(' ').map(n => n[0]).join('') || 'U'}</AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">{review.customer.name}</span>
-                            {review.customer.verified && (
+                            <span className="font-medium">{review.customer_name || 'Anonymous'}</span>
+                            {review.customer_verified && (
                               <CheckCircle className="w-4 h-4 text-green-600" />
                             )}
                           </div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>{review.restaurant}</span>
+                            <span>{review.restaurant_name}</span>
                             <span>•</span>
-                            <span>{review.date}</span>
-                            <span>•</span>
-                            <span>₹{review.orderValue}</span>
+                            <span>{new Date(review.created_at).toLocaleDateString()}</span>
+                            {review.order_value && (
+                              <>
+                                <span>•</span>
+                                <span>₹{Number(review.order_value).toFixed(2)}</span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -268,13 +259,17 @@ export default function ReviewsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Reply className="mr-2 h-4 w-4" />
-                              Reply
+                            <DropdownMenuItem onClick={() => handleStatusUpdate(review.id, 'published')}>
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Publish
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusUpdate(review.id, 'flagged')}>
                               <AlertCircle className="mr-2 h-4 w-4" />
                               Flag Review
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusUpdate(review.id, 'hidden')}>
+                              <AlertCircle className="mr-2 h-4 w-4" />
+                              Hide Review
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -302,11 +297,21 @@ export default function ReviewsPage() {
                       <div className="flex items-center gap-4">
                         <button className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
                           <ThumbsUp className="w-4 h-4" />
-                          Helpful ({review.helpful})
+                          Helpful ({review.helpful_count || 0})
                         </button>
                       </div>
-                      {!review.response && (
-                        <Button variant="outline" size="sm">
+                      {!review.responses?.length && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const textarea = document.getElementById(`response-${review.id}`) as HTMLTextAreaElement;
+                            if (textarea) {
+                              textarea.focus();
+                              textarea.scrollIntoView({ behavior: 'smooth' });
+                            }
+                          }}
+                        >
                           <Reply className="w-4 h-4 mr-2" />
                           Reply
                         </Button>
@@ -314,20 +319,65 @@ export default function ReviewsPage() {
                     </div>
 
                     {/* Restaurant Response */}
-                    {review.response && (
+                    {review.responses && review.responses.length > 0 && (
                       <div className="bg-blue-50 rounded-lg p-4 ml-8">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                            <Reply className="w-3 h-3 text-white" />
+                        {review.responses.map((response) => (
+                          <div key={response.id}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                <Reply className="w-3 h-3 text-white" />
+                              </div>
+                              <span className="text-sm font-medium">{response.author_name || 'Restaurant'}</span>
+                              <span className="text-xs text-muted-foreground">{new Date(response.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <p className="text-sm">{response.content}</p>
                           </div>
-                          <span className="text-sm font-medium">{review.response.author}</span>
-                          <span className="text-xs text-muted-foreground">{review.response.date}</span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Response Form */}
+                    {!review.responses?.length && (
+                      <div className="space-y-3 pt-4 border-t">
+                        <label className="text-sm font-medium">Your Response</label>
+                        <Textarea 
+                          id={`response-${review.id}`}
+                          placeholder="Write a professional response to this review..."
+                          className="min-h-25"
+                          value={responseContent[review.id] || ""}
+                          onChange={(e) => setResponseContent({ ...responseContent, [review.id]: e.target.value })}
+                        />
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm"
+                            onClick={() => handleAddResponse(review.id)}
+                            disabled={!responseContent[review.id]?.trim()}
+                          >
+                            <Reply className="w-4 h-4 mr-2" />
+                            Send Response
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setResponseContent({ ...responseContent, [review.id]: "" })}
+                          >
+                            Clear
+                          </Button>
                         </div>
-                        <p className="text-sm">{review.response.content}</p>
                       </div>
                     )}
                   </div>
                 ))}
+                
+                {reviews.length === 0 && (
+                  <div className="text-center py-12">
+                    <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No reviews found</h3>
+                    <p className="text-gray-600">
+                      {searchTerm ? "Try adjusting your search terms." : "You don't have any reviews yet."}
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -347,9 +397,9 @@ export default function ReviewsPage() {
               <CardContent>
                 <div className="space-y-4">
                   {ratingDistribution.map((rating) => (
-                    <div key={rating.stars} className="flex items-center gap-4">
+                    <div key={rating.rating} className="flex items-center gap-4">
                       <div className="flex items-center gap-1 w-12">
-                        <span className="text-sm">{rating.stars}</span>
+                        <span className="text-sm">{rating.rating}</span>
                         <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                       </div>
                       <div className="flex-1">
@@ -414,26 +464,26 @@ export default function ReviewsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                {reviews.filter(review => review.status === "pending").map((review) => (
+                {pendingReviews.map((review) => (
                   <div key={review.id} className="border rounded-lg p-6 space-y-4">
                     {/* Review Header */}
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={review.customer.avatar} alt={review.customer.name} />
-                          <AvatarFallback>{review.customer.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                          <AvatarImage src={review.customer_avatar} alt={review.customer_name} />
+                          <AvatarFallback>{review.customer_name?.split(' ').map(n => n[0]).join('') || 'U'}</AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">{review.customer.name}</span>
-                            {review.customer.verified && (
+                            <span className="font-medium">{review.customer_name || 'Anonymous'}</span>
+                            {review.customer_verified && (
                               <CheckCircle className="w-4 h-4 text-green-600" />
                             )}
                           </div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>{review.restaurant}</span>
+                            <span>{review.restaurant_name}</span>
                             <span>•</span>
-                            <span>{review.date}</span>
+                            <span>{new Date(review.created_at).toLocaleDateString()}</span>
                           </div>
                         </div>
                       </div>
@@ -461,20 +511,38 @@ export default function ReviewsPage() {
                       <label className="text-sm font-medium">Your Response</label>
                       <Textarea 
                         placeholder="Write a professional response to this review..."
-                        className="min-h-[100px]"
+                        className="min-h-25"
+                        value={responseContent[review.id] || ""}
+                        onChange={(e) => setResponseContent({ ...responseContent, [review.id]: e.target.value })}
                       />
                       <div className="flex gap-2">
-                        <Button size="sm">
+                        <Button 
+                          size="sm"
+                          onClick={() => handleAddResponse(review.id)}
+                          disabled={!responseContent[review.id]?.trim()}
+                        >
                           <Reply className="w-4 h-4 mr-2" />
                           Send Response
                         </Button>
-                        <Button variant="outline" size="sm">
-                          Save Draft
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleStatusUpdate(review.id, 'published')}
+                        >
+                          Publish Without Response
                         </Button>
                       </div>
                     </div>
                   </div>
                 ))}
+                
+                {pendingReviews.length === 0 && (
+                  <div className="text-center py-12">
+                    <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">All caught up!</h3>
+                    <p className="text-gray-600">You don't have any pending reviews at the moment.</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -1,11 +1,11 @@
-const pool = require('../config/database');
+const db = require('../config/database');
 const logger = require('../utils/logger');
 
 class SubscriptionService {
   // Get all available subscription plans
   async getPlans() {
     try {
-      const result = await pool.query(
+      const result = await db.query(
         `SELECT plan_id, name, description, price, interval, features, max_restaurants, is_active
          FROM subscription_plans
          WHERE is_active = true
@@ -21,7 +21,7 @@ class SubscriptionService {
   // Get user's current subscription
   async getUserSubscription(userId) {
     try {
-      const result = await pool.query(
+      const result = await db.query(
         `SELECT us.*, sp.name as plan_name, sp.price, sp.interval, sp.features, sp.max_restaurants
          FROM user_subscriptions us
          JOIN subscription_plans sp ON us.plan_id = sp.plan_id
@@ -37,7 +37,7 @@ class SubscriptionService {
 
   // Create or update user subscription
   async createOrUpdateSubscription(userId, planId) {
-    const client = await pool.connect();
+    const client = await db.getClient();
     try {
       await client.query('BEGIN');
 
@@ -136,7 +136,7 @@ class SubscriptionService {
            WHERE user_id = $1
            RETURNING *`;
 
-      const result = await pool.query(query, [userId]);
+      const result = await db.query(query, [userId]);
       return result.rows[0];
     } catch (error) {
       logger.error('Error cancelling subscription:', error);
@@ -147,7 +147,7 @@ class SubscriptionService {
   // Get billing history
   async getBillingHistory(userId, limit = 20) {
     try {
-      const result = await pool.query(
+      const result = await db.query(
         `SELECT id, invoice_number, description, amount, currency, status, 
                 payment_method, payment_date, due_date, created_at
          FROM billing_history
@@ -166,7 +166,7 @@ class SubscriptionService {
   // Get payment methods
   async getPaymentMethods(userId) {
     try {
-      const result = await pool.query(
+      const result = await db.query(
         `SELECT id, type, last_four, brand, is_default, created_at
          FROM payment_methods
          WHERE user_id = $1
@@ -182,7 +182,7 @@ class SubscriptionService {
 
   // Add payment method
   async addPaymentMethod(userId, paymentData) {
-    const client = await pool.connect();
+    const client = await db.getClient();
     try {
       await client.query('BEGIN');
 
@@ -215,7 +215,7 @@ class SubscriptionService {
   // Delete payment method
   async deletePaymentMethod(userId, paymentMethodId) {
     try {
-      const result = await pool.query(
+      const result = await db.query(
         'DELETE FROM payment_methods WHERE id = $1 AND user_id = $2 RETURNING *',
         [paymentMethodId, userId]
       );
@@ -245,7 +245,7 @@ class SubscriptionService {
           return { allowed: true }; // Unlimited
         }
 
-        const countResult = await pool.query(
+        const countResult = await db.query(
           'SELECT COUNT(*) as count FROM restaurants WHERE owner_id = $1',
           [userId]
         );

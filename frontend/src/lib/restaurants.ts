@@ -6,6 +6,7 @@ export interface Restaurant {
   id: string;
   owner_id: string;
   name: string;
+  slug?: string; // Add slug field
   description?: string;
   logo_url?: string;
   cover_image_url?: string;
@@ -42,6 +43,16 @@ export interface CreateRestaurantData {
 }
 
 export const restaurantApi = {
+  // Get restaurant by ID
+  async getById(id: string) {
+    return api.get<{ success: boolean; data: Restaurant }>(`/restaurants/${id}`);
+  },
+
+  // Get restaurant by slug
+  async getBySlug(slug: string) {
+    return api.get<{ success: boolean; data: Restaurant }>(`/restaurants/slug/${slug}`);
+  },
+
   // Get all restaurants
   getAll: async (params?: { city?: string; isActive?: boolean; page?: number; limit?: number }) => {
     const queryParams = new URLSearchParams();

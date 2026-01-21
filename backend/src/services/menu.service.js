@@ -1,16 +1,25 @@
-const pool = require('../config/database');
+const db = require('../config/database');
 const logger = require('../utils/logger');
 
 class MenuService {
   // Get all menu categories
-  async getCategories() {
+  async getCategories(restaurantId = null) {
     try {
-      const result = await pool.query(
-        `SELECT id, name, description, display_order, is_active
-         FROM menu_categories
-         WHERE is_active = true
-         ORDER BY display_order ASC, name ASC`
-      );
+      let query = `
+        SELECT id, name, description, display_order, is_active, restaurant_id
+        FROM menu_categories
+        WHERE is_active = true
+      `;
+      const params = [];
+      
+      if (restaurantId) {
+        query += ` AND restaurant_id = $1`;
+        params.push(restaurantId);
+      }
+      
+      query += ` ORDER BY display_order ASC, name ASC`;
+      
+      const result = await db.query(query, params);
       return result.rows;
     } catch (error) {
       logger.error('Error fetching menu categories:', error);
@@ -123,7 +132,7 @@ class MenuService {
         params.push(filters.offset);
       }
 
-      const result = await pool.query(query, params);
+      const result = await db.query(query, params);
       return result.rows;
     } catch (error) {
       logger.error('Error fetching menu items:', error);
@@ -134,7 +143,7 @@ class MenuService {
   // Get single menu item by ID
   async getMenuItemById(id) {
     try {
-      const result = await pool.query(
+      const result = await db.query(
         `SELECT 
           mi.*,
           mc.name as category_name,
@@ -161,7 +170,7 @@ class MenuService {
 
   // Create new menu item
   async createMenuItem(userId, itemData) {
-    const client = await pool.connect();
+    const client = await db.getClient();
     try {
       await client.query('BEGIN');
 
@@ -185,7 +194,7 @@ class MenuService {
         RETURNING *`,
         [
           itemData.restaurantId,
-          itemData.categoryId || null,
+          itemData.categoryId || null, // Keep as UUID string, don't convert
           itemData.name,
           itemData.description || '',
           itemData.price,
@@ -223,7 +232,7 @@ class MenuService {
 
   // Update menu item
   async updateMenuItem(userId, itemId, itemData) {
-    const client = await pool.connect();
+    const client = await db.getClient();
     try {
       await client.query('BEGIN');
 
@@ -310,7 +319,7 @@ class MenuService {
   async deleteMenuItem(userId, itemId) {
     try {
       // Verify ownership and soft delete
-      const result = await pool.query(
+      const result = await db.query(
         `UPDATE menu_items 
          SET is_active = false, updated_at = CURRENT_TIMESTAMP
          FROM restaurants r
@@ -344,7 +353,7 @@ class MenuService {
         params.push(restaurantId);
       }
 
-      const result = await pool.query(
+      const result = await db.query(
         `SELECT 
           COUNT(mi.id) as total_items,
           COUNT(CASE WHEN mi.status = 'available' THEN 1 END) as available_items,
@@ -371,7 +380,7 @@ class MenuService {
   // Get popular menu items
   async getPopularItems(userId, limit = 10) {
     try {
-      const result = await pool.query(
+      const result = await db.query(
         `SELECT 
           mi.id, mi.name, mi.price, mi.image_url,
           mc.name as category_name,
@@ -402,7 +411,7 @@ class MenuService {
         throw new Error('Invalid status');
       }
 
-      const result = await pool.query(
+      const result = await db.query(
         `UPDATE menu_items 
          SET status = $3, updated_at = CURRENT_TIMESTAMP
          FROM restaurants r

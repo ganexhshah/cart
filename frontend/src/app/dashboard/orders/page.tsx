@@ -359,7 +359,7 @@ export default function OrdersPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">Revenue</p>
-                <p className="text-xl font-bold text-emerald-600">₹{orderStats.totalRevenue.toFixed(0)}</p>
+                <p className="text-xl font-bold text-emerald-600">₹{Number(orderStats.totalRevenue || 0).toFixed(0)}</p>
               </div>
               <TrendingUp className="h-6 w-6 text-emerald-600" />
             </div>
@@ -505,7 +505,7 @@ export default function OrdersPage() {
                       <TableCell className="font-medium">{order.order_number}</TableCell>
                       <TableCell className="hidden md:table-cell">{order.customer_name || 'Guest'}</TableCell>
                       <TableCell className="hidden sm:table-cell capitalize">{order.order_type}</TableCell>
-                      <TableCell>₹{order.total.toFixed(2)}</TableCell>
+                      <TableCell>₹{Number(order.total || 0).toFixed(2)}</TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(order.status)}>
                           <span className="flex items-center gap-1">
@@ -590,7 +590,7 @@ export default function OrdersPage() {
                                   {order.items.map((item, idx) => (
                                     <div key={idx} className="flex justify-between text-sm">
                                       <span>{item.quantity}x {item.name}</span>
-                                      <span>₹{(item.price * item.quantity).toFixed(2)}</span>
+                                      <span>₹{(Number(item.price || 0) * item.quantity).toFixed(2)}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -602,28 +602,28 @@ export default function OrdersPage() {
                                 <div className="space-y-2 text-sm">
                                   <div className="flex justify-between">
                                     <span>Subtotal</span>
-                                    <span>₹{order.subtotal.toFixed(2)}</span>
+                                    <span>₹{Number(order.subtotal || 0).toFixed(2)}</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span>Tax</span>
-                                    <span>₹{order.tax.toFixed(2)}</span>
+                                    <span>₹{Number(order.tax || 0).toFixed(2)}</span>
                                   </div>
                                   {order.discount > 0 && (
                                     <div className="flex justify-between text-green-600">
                                       <span>Discount</span>
-                                      <span>-₹{order.discount.toFixed(2)}</span>
+                                      <span>-₹{Number(order.discount || 0).toFixed(2)}</span>
                                     </div>
                                   )}
                                   {order.delivery_fee > 0 && (
                                     <div className="flex justify-between">
                                       <span>Delivery Fee</span>
-                                      <span>₹{order.delivery_fee.toFixed(2)}</span>
+                                      <span>₹{Number(order.delivery_fee || 0).toFixed(2)}</span>
                                     </div>
                                   )}
                                   <Separator />
                                   <div className="flex justify-between font-semibold">
                                     <span>Total</span>
-                                    <span>₹{order.total.toFixed(2)}</span>
+                                    <span>₹{Number(order.total || 0).toFixed(2)}</span>
                                   </div>
                                 </div>
                               </div>
@@ -724,7 +724,7 @@ export default function OrdersPage() {
                 <CardTitle className="text-sm">Total Revenue</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">₹{orderStats.totalRevenue.toFixed(2)}</p>
+                <p className="text-2xl font-bold">₹{Number(orderStats.totalRevenue || 0).toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground">From {orderStats.completed} completed orders</p>
               </CardContent>
             </Card>
@@ -733,7 +733,7 @@ export default function OrdersPage() {
                 <CardTitle className="text-sm">Average Order Value</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">₹{orderStats.avgOrderValue.toFixed(2)}</p>
+                <p className="text-2xl font-bold">₹{Number(orderStats.avgOrderValue || 0).toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground">Across all orders</p>
               </CardContent>
             </Card>

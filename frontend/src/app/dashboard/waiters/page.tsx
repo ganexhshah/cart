@@ -298,7 +298,7 @@ export default function WaitersPage() {
               <CardTitle className="text-sm font-medium text-gray-600">Avg Rating</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.avgRating.toFixed(1)} ⭐</div>
+              <div className="text-2xl font-bold">{Number(stats.avgRating || 0).toFixed(1)} ⭐</div>
             </CardContent>
           </Card>
         </div>
@@ -392,7 +392,7 @@ export default function WaitersPage() {
                             <span className="font-medium">{waiter.orders_served || 0}</span> orders
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            ⭐ {(waiter.avg_rating || 0).toFixed(1)} rating
+                            ⭐ {Number(waiter.avg_rating || 0).toFixed(1)} rating
                           </div>
                         </div>
                       </TableCell>

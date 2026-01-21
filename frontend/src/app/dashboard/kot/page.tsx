@@ -814,7 +814,7 @@ export default function KOTPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold">
-                    {kotStats.avg_preparation_time ? `${kotStats.avg_preparation_time.toFixed(1)}m` : 'N/A'}
+                    {kotStats.avg_preparation_time ? `${Number(kotStats.avg_preparation_time).toFixed(1)}m` : 'N/A'}
                   </p>
                   <p className="text-xs text-muted-foreground">Actual preparation time</p>
                 </CardContent>

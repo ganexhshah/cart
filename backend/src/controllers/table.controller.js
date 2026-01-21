@@ -1,5 +1,6 @@
 const tableService = require('../services/table.service');
 const logger = require('../utils/logger');
+const db = require('../config/database');
 
 class TableController {
   // Get tables with filters
@@ -343,15 +344,31 @@ class TableController {
         });
       }
 
-      // Generate QR code data (URL that customers will scan)
+      // Get restaurant details to create slug-based URL
+      const restaurantResult = await db.query(
+        'SELECT slug, name FROM restaurants WHERE id = $1',
+        [table.restaurant_id]
+      );
+
+      if (restaurantResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Restaurant not found'
+        });
+      }
+
+      const restaurant = restaurantResult.rows[0];
+      
+      // Generate QR code data with new URL format: /menu/restaurant-slug/table-id
       const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       const qrData = {
-        url: `${baseUrl}/menu?table=${table.id}&restaurant=${table.restaurant_id}`,
+        url: `${baseUrl}/menu/${restaurant.slug}/${table.id}`,
         tableId: table.id,
-        tableName: table.name,
+        tableName: table.name || table.table_number,
         tableNumber: table.table_number,
         restaurantId: table.restaurant_id,
-        restaurantName: table.restaurant_name
+        restaurantName: restaurant.name,
+        restaurantSlug: restaurant.slug
       };
 
       res.json({

@@ -1,6 +1,28 @@
 const restaurantService = require('../services/restaurant.service');
 
 class RestaurantController {
+  // Get restaurant by slug (public route)
+  async getRestaurantBySlug(req, res, next) {
+    try {
+      const { slug } = req.params;
+      const restaurant = await restaurantService.getRestaurantBySlug(slug);
+      
+      if (!restaurant) {
+        return res.status(404).json({
+          success: false,
+          message: 'Restaurant not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: restaurant
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async createRestaurant(req, res, next) {
     try {
       const restaurantData = {

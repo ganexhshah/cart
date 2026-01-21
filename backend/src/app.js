@@ -18,6 +18,11 @@ const staffRoutes = require('./routes/staff.routes');
 const customerRoutes = require('./routes/customer.routes');
 const kotRoutes = require('./routes/kot.routes');
 const posRoutes = require('./routes/pos.routes');
+const reviewRoutes = require('./routes/review.routes');
+const analyticsRoutes = require('./routes/analytics.routes');
+const billingRoutes = require('./routes/billing.routes');
+const inventoryRoutes = require('./routes/inventory.routes');
+const purchaseRoutes = require('./routes/purchase.routes');
 
 const { errorHandler, notFound } = require('./middleware/error.middleware');
 const { generalLimiter } = require('./middleware/rateLimit.middleware');
@@ -65,6 +70,11 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/kot', kotRoutes);
 app.use('/api/pos', posRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/purchases', purchaseRoutes);
 
 // 404 handler
 app.use(notFound);

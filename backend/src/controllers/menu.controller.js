@@ -5,7 +5,8 @@ class MenuController {
   // Get all menu categories
   async getCategories(req, res, next) {
     try {
-      const categories = await menuService.getCategories();
+      const { restaurantId } = req.query;
+      const categories = await menuService.getCategories(restaurantId);
       res.json({
         success: true,
         data: categories
@@ -162,7 +163,7 @@ class MenuController {
       });
 
       // Convert string numbers to numbers
-      ['price', 'preparationTime', 'calories', 'displayOrder', 'categoryId'].forEach(field => {
+      ['price', 'preparationTime', 'calories', 'displayOrder'].forEach(field => {
         if (updateData[field] !== undefined && updateData[field] !== '') {
           updateData[field] = parseFloat(updateData[field]);
         }

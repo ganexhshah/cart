@@ -235,7 +235,7 @@ export default function CustomersPage() {
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{stats?.avg_customer_value?.toFixed(2) || '0.00'}</div>
+            <div className="text-2xl font-bold">₹{Number(stats?.avg_customer_value || 0).toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
               Per customer lifetime
             </p>
@@ -417,7 +417,7 @@ export default function CustomersPage() {
                             <div className="font-medium">{customer.full_name}</div>
                             <div className="text-sm text-muted-foreground flex items-center gap-1">
                               <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                              {customer.avg_rating?.toFixed(1) || 'N/A'}
+                              {Number(customer.avg_rating || 0).toFixed(1)}
                             </div>
                           </div>
                         </div>
@@ -452,7 +452,7 @@ export default function CustomersPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">₹{customer.total_spent?.toFixed(2) || '0.00'}</div>
+                        <div className="font-medium">₹{Number(customer.total_spent || 0).toFixed(2)}</div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <Badge className={getStatusColor(customer.status)}>

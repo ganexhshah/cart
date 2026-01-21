@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DashboardLayout } from "@/components/dashboard/layout";
+import { useDashboardData } from "@/hooks/useAnalytics";
+import { TimeFrame } from "@/lib/analytics";
+import { useState } from "react";
 import { 
   TrendingUp, 
   TrendingDown,
@@ -18,91 +21,107 @@ import {
   Target,
   Calendar,
   Download,
-  RefreshCw
+  RefreshCw,
+  Loader2
 } from "lucide-react";
 
 export default function AnalyticsPage() {
-  // Mock analytics data
-  const overviewStats = [
+  const [timeframe, setTimeframe] = useState<TimeFrame>('30days');
+  const { data, loading, error, refetch, exportReport } = useDashboardData(timeframe);
+
+  const handleExport = async () => {
+    try {
+      await exportReport('json');
+    } catch (error) {
+      console.error('Export failed:', error);
+    }
+  };
+
+  const handleRefresh = () => {
+    refetch();
+  };
+
+  const formatCurrency = (amount: number) => {
+    return `₹${amount.toLocaleString()}`;
+  };
+
+  const getStatusColor = (trend: 'up' | 'down') => {
+    return trend === 'up' ? 'text-green-600' : 'text-red-600';
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <DashboardLayout title="Analytics Dashboard">
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Loading analytics...</span>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <DashboardLayout title="Analytics Dashboard">
+        <Card>
+          <CardContent className="py-12">
+            <div className="text-center">
+              <p className="text-red-600 mb-4">{error}</p>
+              <Button onClick={handleRefresh} variant="outline">
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </DashboardLayout>
+    );
+  }
+
+  const overviewStats = data?.overview ? [
     {
       title: "Total Revenue",
-      value: "₹45,231",
-      change: "+12.5%",
-      trend: "up",
+      value: formatCurrency(data.overview.total_revenue.value),
+      change: `${data.overview.total_revenue.change}%`,
+      trend: data.overview.total_revenue.trend,
       period: "vs last month",
       icon: () => <span className="text-green-600 text-lg font-bold">₹</span>
     },
     {
       title: "Total Orders",
-      value: "1,247",
-      change: "+8.2%",
-      trend: "up",
+      value: data.overview.total_orders.value.toString(),
+      change: `${data.overview.total_orders.change}%`,
+      trend: data.overview.total_orders.trend,
       period: "vs last month",
       icon: ShoppingCart
     },
     {
       title: "New Customers",
-      value: "234",
-      change: "-2.1%",
-      trend: "down",
+      value: data.overview.new_customers.value.toString(),
+      change: `${data.overview.new_customers.change}%`,
+      trend: data.overview.new_customers.trend,
       period: "vs last month",
       icon: Users
     },
     {
       title: "Avg Order Value",
-      value: "₹36.28",
-      change: "+4.7%",
-      trend: "up",
+      value: formatCurrency(data.overview.avg_order_value.value),
+      change: `${data.overview.avg_order_value.change}%`,
+      trend: data.overview.avg_order_value.trend,
       period: "vs last month",
       icon: Target
     }
-  ];
-
-  const revenueData = [
-    { month: "Jan", revenue: 18500, orders: 420, customers: 180 },
-    { month: "Feb", revenue: 22100, orders: 510, customers: 220 },
-    { month: "Mar", revenue: 19800, orders: 480, customers: 195 },
-    { month: "Apr", revenue: 25400, orders: 580, customers: 250 },
-    { month: "May", revenue: 28100, orders: 640, customers: 280 },
-    { month: "Jun", revenue: 31200, orders: 720, customers: 310 }
-  ];
-
-  const topProducts = [
-    { name: "Margherita Pizza", revenue: 8450, orders: 156, growth: "+15%" },
-    { name: "Classic Burger", revenue: 6720, orders: 134, growth: "+8%" },
-    { name: "Chicken Wings", revenue: 5880, orders: 98, growth: "+22%" },
-    { name: "Caesar Salad", revenue: 3915, orders: 87, growth: "+5%" },
-    { name: "Pasta Carbonara", revenue: 4560, orders: 76, growth: "+12%" }
-  ];
-
-  const customerSegments = [
-    { segment: "New Customers", count: 234, percentage: 35, color: "bg-blue-500" },
-    { segment: "Returning Customers", count: 456, percentage: 45, color: "bg-green-500" },
-    { segment: "VIP Customers", count: 89, percentage: 20, color: "bg-purple-500" }
-  ];
-
-  const hourlyData = [
-    { hour: "6 AM", orders: 12 },
-    { hour: "9 AM", orders: 28 },
-    { hour: "12 PM", orders: 65 },
-    { hour: "3 PM", orders: 42 },
-    { hour: "6 PM", orders: 89 },
-    { hour: "9 PM", orders: 67 },
-    { hour: "12 AM", orders: 23 }
-  ];
-
-  const restaurantPerformance = [
-    { name: "Pizza Palace", revenue: 18500, orders: 234, rating: 4.8, growth: "+18%" },
-    { name: "Burger Barn", revenue: 15200, orders: 189, rating: 4.5, growth: "+12%" },
-    { name: "Sushi Spot", revenue: 11500, orders: 156, rating: 4.9, growth: "+25%" }
-  ];
+  ] : [];
 
   return (
     <DashboardLayout title="Analytics Dashboard">
       {/* Header Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div className="flex items-center gap-4">
-          <Select defaultValue="30days">
+          <Select value={timeframe} onValueChange={(value: TimeFrame) => setTimeframe(value)}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -113,12 +132,12 @@ export default function AnalyticsPage() {
               <SelectItem value="1year">Last year</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
         </div>
-        <Button size="sm">
+        <Button size="sm" onClick={handleExport}>
           <Download className="w-4 h-4 mr-2" />
           Export Report
         </Button>
@@ -140,7 +159,7 @@ export default function AnalyticsPage() {
                 ) : (
                   <TrendingDown className="h-3 w-3 text-red-600" />
                 )}
-                <span className={stat.trend === "up" ? "text-green-600" : "text-red-600"}>
+                <span className={getStatusColor(stat.trend)}>
                   {stat.change}
                 </span>
                 <span className="text-muted-foreground">{stat.period}</span>
@@ -173,14 +192,14 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {revenueData.map((item) => (
+                  {data?.revenue?.map((item) => (
                     <div key={item.month} className="flex items-center justify-between">
                       <span className="text-sm font-medium w-12">{item.month}</span>
                       <div className="flex items-center gap-3 flex-1 mx-4">
                         <div className="flex-1 bg-gray-200 rounded-full h-2">
                           <div 
                             className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${(item.revenue / 35000) * 100}%` }}
+                            style={{ width: `${Math.min((item.revenue / 35000) * 100, 100)}%` }}
                           />
                         </div>
                         <span className="text-sm text-muted-foreground min-w-[60px]">
@@ -188,7 +207,11 @@ export default function AnalyticsPage() {
                         </span>
                       </div>
                     </div>
-                  ))}
+                  )) || (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No revenue data available
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -204,12 +227,12 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-end justify-between gap-2 h-48">
-                  {hourlyData.map((hour) => (
+                  {data?.hourlyPatterns?.map((hour) => (
                     <div key={hour.hour} className="flex flex-col items-center flex-1">
                       <div className="flex flex-col items-center justify-end h-32 w-full">
                         <div 
                           className="bg-gradient-to-t from-green-600 to-green-400 rounded-t-md w-full transition-all duration-300"
-                          style={{ height: `${(hour.orders / 100) * 100}%` }}
+                          style={{ height: `${Math.max((hour.orders / 100) * 100, 5)}%` }}
                         />
                       </div>
                       <div className="mt-2 text-center">
@@ -217,7 +240,11 @@ export default function AnalyticsPage() {
                         <div className="text-xs text-muted-foreground">{hour.hour}</div>
                       </div>
                     </div>
-                  ))}
+                  )) || (
+                    <div className="text-center py-8 text-muted-foreground w-full">
+                      No hourly data available
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -237,7 +264,7 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {revenueData.map((item) => (
+                  {data?.revenue?.map((item) => (
                     <div key={item.month} className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">{item.month}</span>
@@ -249,11 +276,15 @@ export default function AnalyticsPage() {
                       <div className="w-full bg-gray-200 rounded-full h-3">
                         <div 
                           className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-                          style={{ width: `${(item.revenue / 35000) * 100}%` }}
+                          style={{ width: `${Math.min((item.revenue / 35000) * 100, 100)}%` }}
                         />
                       </div>
                     </div>
-                  ))}
+                  )) || (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No revenue data available
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -268,18 +299,37 @@ export default function AnalyticsPage() {
                 <div className="space-y-4">
                   <div className="p-3 bg-green-50 rounded-lg">
                     <div className="text-sm text-muted-foreground">Total Revenue</div>
-                    <div className="text-xl font-bold text-green-700">₹145,000</div>
-                    <div className="text-xs text-green-600">+12% vs last period</div>
+                    <div className="text-xl font-bold text-green-700">
+                      {data?.overview ? formatCurrency(data.overview.total_revenue.value) : '₹0'}
+                    </div>
+                    <div className="text-xs text-green-600">
+                      {data?.overview ? `${data.overview.total_revenue.change}% vs last period` : 'No data'}
+                    </div>
                   </div>
                   <div className="p-3 bg-blue-50 rounded-lg">
                     <div className="text-sm text-muted-foreground">Avg Monthly</div>
-                    <div className="text-xl font-bold text-blue-700">₹24,167</div>
-                    <div className="text-xs text-blue-600">Consistent growth</div>
+                    <div className="text-xl font-bold text-blue-700">
+                      {data?.revenue?.length ? 
+                        formatCurrency(data.revenue.reduce((sum, item) => sum + item.revenue, 0) / data.revenue.length) : 
+                        '₹0'
+                      }
+                    </div>
+                    <div className="text-xs text-blue-600">Based on available data</div>
                   </div>
                   <div className="p-3 bg-purple-50 rounded-lg">
                     <div className="text-sm text-muted-foreground">Best Month</div>
-                    <div className="text-xl font-bold text-purple-700">June</div>
-                    <div className="text-xs text-purple-600">₹31,200 revenue</div>
+                    <div className="text-xl font-bold text-purple-700">
+                      {data?.revenue?.length ? 
+                        data.revenue.reduce((best, current) => current.revenue > best.revenue ? current : best).month :
+                        'N/A'
+                      }
+                    </div>
+                    <div className="text-xs text-purple-600">
+                      {data?.revenue?.length ? 
+                        formatCurrency(data.revenue.reduce((best, current) => current.revenue > best.revenue ? current : best).revenue) :
+                        'No data'
+                      }
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -300,8 +350,8 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {topProducts.map((product, index) => (
-                  <div key={product.name} className="flex items-center justify-between p-4 border rounded-lg">
+                {data?.products?.map((product, index) => (
+                  <div key={`${product.name}-${index}`} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-4">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
                         index === 0 ? 'bg-yellow-500' : 
@@ -322,11 +372,17 @@ export default function AnalyticsPage() {
                         {product.growth}
                       </Badge>
                       <div className="text-sm text-muted-foreground">
-                        ₹{(product.revenue / product.orders).toFixed(2)} avg
+                        ₹{product.avg_price.toFixed(2)} avg
                       </div>
                     </div>
                   </div>
-                ))}
+                )) || (
+                  <div className="text-center py-12">
+                    <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No product data</h3>
+                    <p className="text-gray-600">Product performance data will appear here once you have orders.</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -345,22 +401,33 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {customerSegments.map((segment) => (
-                    <div key={segment.segment} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">{segment.segment}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {segment.count} ({segment.percentage}%)
-                        </span>
+                  {data?.customerSegments?.map((segment) => {
+                    const colors = {
+                      'New Customers': 'bg-blue-500',
+                      'Returning Customers': 'bg-green-500',
+                      'VIP Customers': 'bg-purple-500'
+                    };
+                    return (
+                      <div key={segment.segment} className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">{segment.segment}</span>
+                          <span className="text-sm text-muted-foreground">
+                            {segment.count} ({segment.percentage}%)
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className={`${colors[segment.segment as keyof typeof colors] || 'bg-gray-500'} h-2 rounded-full transition-all duration-300`}
+                            style={{ width: `${segment.percentage}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`${segment.color} h-2 rounded-full transition-all duration-300`}
-                          style={{ width: `${segment.percentage}%` }}
-                        />
-                      </div>
+                    );
+                  }) || (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No customer segment data available
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -378,21 +445,27 @@ export default function AnalyticsPage() {
                       <div className="font-medium">Customer Lifetime Value</div>
                       <div className="text-sm text-muted-foreground">Average per customer</div>
                     </div>
-                    <div className="text-xl font-bold text-blue-700">₹156</div>
+                    <div className="text-xl font-bold text-blue-700">
+                      ₹{data?.customerInsights?.lifetime_value || '0'}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                     <div>
                       <div className="font-medium">Retention Rate</div>
                       <div className="text-sm text-muted-foreground">Customers who return</div>
                     </div>
-                    <div className="text-xl font-bold text-green-700">68%</div>
+                    <div className="text-xl font-bold text-green-700">
+                      {data?.customerInsights?.retention_rate || '0'}%
+                    </div>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
                     <div>
                       <div className="font-medium">Avg Order Frequency</div>
                       <div className="text-sm text-muted-foreground">Orders per month</div>
                     </div>
-                    <div className="text-xl font-bold text-purple-700">3.2</div>
+                    <div className="text-xl font-bold text-purple-700">
+                      {data?.customerInsights?.order_frequency || '0'}
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -413,8 +486,8 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                {restaurantPerformance.map((restaurant, index) => (
-                  <div key={restaurant.name} className="space-y-3">
+                {data?.restaurantPerformance?.map((restaurant, index) => (
+                  <div key={restaurant.id || `restaurant-${index}`} className="space-y-3">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-3">
                         <div className={`w-3 h-3 rounded-full ${
@@ -446,11 +519,17 @@ export default function AnalyticsPage() {
                           index === 0 ? 'bg-green-500' : 
                           index === 1 ? 'bg-blue-500' : 'bg-purple-500'
                         }`}
-                        style={{ width: `${(restaurant.revenue / 20000) * 100}%` }}
+                        style={{ width: `${Math.min((restaurant.revenue / 20000) * 100, 100)}%` }}
                       />
                     </div>
                   </div>
-                ))}
+                )) || (
+                  <div className="text-center py-12">
+                    <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No performance data</h3>
+                    <p className="text-gray-600">Restaurant performance data will appear here once you have multiple restaurants.</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

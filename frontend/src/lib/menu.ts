@@ -1,7 +1,8 @@
 import { api } from './api';
 
 export interface MenuCategory {
-  id: number;
+  id: string; // Changed from number to string (UUID)
+  restaurant_id?: string;
   name: string;
   description: string;
   display_order: number;
@@ -9,9 +10,9 @@ export interface MenuCategory {
 }
 
 export interface MenuItem {
-  id: number;
+  id: string; // Already UUID
   restaurant_id: string;
-  category_id: number;
+  category_id: string | null; // Changed from number to string (UUID)
   name: string;
   description: string;
   price: number;
@@ -51,7 +52,7 @@ export interface MenuStats {
 
 export interface CreateMenuItemData {
   restaurantId: string;
-  categoryId?: number;
+  categoryId?: string; // Changed from number to string (UUID)
   name: string;
   description?: string;
   price: number;
@@ -71,7 +72,7 @@ export interface CreateMenuItemData {
 
 export interface MenuFilters {
   restaurantId?: string;
-  categoryId?: number;
+  categoryId?: string; // Changed from number to string (UUID)
   status?: string;
   search?: string;
   isVegetarian?: boolean;
@@ -83,8 +84,9 @@ export interface MenuFilters {
 
 export const menuApi = {
   // Get all menu categories
-  async getCategories() {
-    return api.get<{ success: boolean; data: MenuCategory[] }>('/menu/categories');
+  async getCategories(restaurantId?: string) {
+    const url = restaurantId ? `/menu/categories?restaurantId=${restaurantId}` : '/menu/categories';
+    return api.get<{ success: boolean; data: MenuCategory[] }>(url);
   },
 
   // Get menu items with filters

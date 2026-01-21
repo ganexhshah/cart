@@ -1,4 +1,4 @@
-const pool = require('../config/database');
+const db = require('../config/database');
 const logger = require('../utils/logger');
 
 class TableService {
@@ -46,7 +46,7 @@ class TableService {
 
       query += ` GROUP BY rt.id, r.name ORDER BY rt.table_number ASC`;
 
-      const result = await pool.query(query, params);
+      const result = await db.query(query, params);
       return result.rows;
     } catch (error) {
       logger.error('Error fetching tables:', error);
@@ -57,7 +57,7 @@ class TableService {
   // Get single table by ID
   async getTableById(tableId) {
     try {
-      const result = await pool.query(
+      const result = await db.query(
         `SELECT 
           rt.*,
           r.name as restaurant_name,
@@ -79,7 +79,7 @@ class TableService {
 
   // Create new table
   async createTable(userId, tableData) {
-    const client = await pool.connect();
+    const client = await db.getClient();
     try {
       await client.query('BEGIN');
 
@@ -134,7 +134,7 @@ class TableService {
 
   // Update table
   async updateTable(userId, tableId, tableData) {
-    const client = await pool.connect();
+    const client = await db.getClient();
     try {
       await client.query('BEGIN');
 
@@ -203,7 +203,7 @@ class TableService {
 
   // Delete table
   async deleteTable(userId, tableId) {
-    const client = await pool.connect();
+    const client = await db.getClient();
     try {
       await client.query('BEGIN');
 
@@ -252,7 +252,7 @@ class TableService {
         throw new Error('Invalid status');
       }
 
-      const result = await pool.query(
+      const result = await db.query(
         `UPDATE restaurant_tables rt
          SET status = $3, updated_at = CURRENT_TIMESTAMP
          FROM restaurants r
@@ -285,7 +285,7 @@ class TableService {
         params.push(restaurantId);
       }
 
-      const result = await pool.query(
+      const result = await db.query(
         `SELECT 
           COUNT(rt.id) as total_tables,
           COUNT(CASE WHEN rt.status = 'available' THEN 1 END) as available_tables,
@@ -351,7 +351,7 @@ class TableService {
 
       query += ` GROUP BY rt.id, r.name ORDER BY r.name ASC, rt.table_number ASC`;
 
-      const result = await pool.query(query, params);
+      const result = await db.query(query, params);
       return result.rows;
     } catch (error) {
       logger.error('Error fetching user tables:', error);
@@ -362,7 +362,7 @@ class TableService {
   // Get available tables for a restaurant
   async getAvailableTables(restaurantId) {
     try {
-      const result = await pool.query(
+      const result = await db.query(
         `SELECT * FROM restaurant_tables 
          WHERE restaurant_id = $1 AND status = 'available'
          ORDER BY table_number ASC`,
@@ -378,7 +378,7 @@ class TableService {
   // Get table with current order details
   async getTableWithOrders(tableId) {
     try {
-      const result = await pool.query(
+      const result = await db.query(
         `SELECT 
           rt.*,
           r.name as restaurant_name,

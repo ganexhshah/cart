@@ -473,7 +473,7 @@ export default function StaffPage() {
                           <TableCell className="hidden md:table-cell">
                             <div className="space-y-1">
                               <div className="text-sm">
-                                ⭐ {(member.avg_rating || 0).toFixed(1)} rating
+                                ⭐ {Number(member.avg_rating || 0).toFixed(1)} rating
                               </div>
                               <div className="text-sm text-muted-foreground">
                                 {member.orders_served || 0} orders

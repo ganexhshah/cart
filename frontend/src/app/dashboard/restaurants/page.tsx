@@ -23,7 +23,8 @@ import {
   MapPin,
   Phone,
   Mail,
-  Loader2
+  Loader2,
+  Menu
 } from "lucide-react";
 import { useRestaurants } from "@/hooks/useRestaurants";
 import { Restaurant } from "@/lib/restaurants";
@@ -202,6 +203,12 @@ export default function RestaurantsPage() {
                               </DropdownMenuItem>
                             </DialogTrigger>
                           </Dialog>
+                          <Link href={`/menu/${restaurant.slug}/demo-table`}>
+                            <DropdownMenuItem>
+                              <Menu className="mr-2 h-4 w-4" />
+                              View Menu
+                            </DropdownMenuItem>
+                          </Link>
                           <DropdownMenuItem>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit

@@ -3,22 +3,44 @@ const redis = require('../config/redis');
 const { paginate } = require('../utils/helpers');
 
 class RestaurantService {
+  // Get restaurant by slug (public method)
+  async getRestaurantBySlug(slug) {
+    const result = await db.query(
+      'SELECT * FROM restaurants WHERE slug = $1 AND is_active = true',
+      [slug]
+    );
+    return result.rows[0] || null;
+  }
+
   async createRestaurant(restaurantData) {
     const {
       ownerId, name, description, logoUrl, address, city, state, zipCode, country,
       phone, email, openingTime, closingTime
     } = restaurantData;
     
+    // Generate slug from restaurant name
+    const slug = this.generateSlug(name);
+    
     const result = await db.query(
       `INSERT INTO restaurants (
-        owner_id, name, description, logo_url, address, city, state, zip_code, country,
+        owner_id, name, slug, description, logo_url, address, city, state, zip_code, country,
         phone, email, opening_time, closing_time
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
-      [ownerId, name, description, logoUrl, address, city, state, zipCode, country, phone, email, openingTime, closingTime]
+      [ownerId, name, slug, description, logoUrl, address, city, state, zipCode, country, phone, email, openingTime, closingTime]
     );
     
     return result.rows[0];
+  }
+
+  // Generate URL-friendly slug from restaurant name
+  generateSlug(name) {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single
+      .trim('-'); // Remove leading/trailing hyphens
   }
   
   async getRestaurants(filters) {

@@ -146,7 +146,7 @@ export default function DashboardPage() {
               <span className="text-muted-foreground text-lg">₹</span>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{totalRevenue.toFixed(2)}</div>
+              <div className="text-2xl font-bold">₹{Number(totalRevenue || 0).toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">
                 From recent orders
               </p>

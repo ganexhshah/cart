@@ -37,7 +37,9 @@ import {
   ClipboardList,
   UsersRound,
   LogOut,
-  CreditCard
+  CreditCard,
+  Package,
+  Truck
 } from "lucide-react";
 import { authApi } from "@/lib/auth";
 import { restaurantApi } from "@/lib/restaurants";
@@ -67,6 +69,11 @@ const navMain = [
         icon: ShoppingCart,
       },
       {
+        title: "Billing & Payments",
+        url: "/dashboard/billing",
+        icon: Receipt,
+      },
+      {
         title: "KOT Management",
         url: "/dashboard/kot",
         icon: ClipboardList,
@@ -79,7 +86,7 @@ const navMain = [
       {
         title: "Menu Items",
         url: "/dashboard/menu",
-        icon: Receipt,
+        icon: Utensils,
       },
       {
         title: "Tables",
@@ -100,6 +107,21 @@ const navMain = [
         title: "Customers",
         url: "/dashboard/customers",
         icon: Users,
+      },
+    ],
+  },
+  {
+    title: "Inventory & Purchasing",
+    items: [
+      {
+        title: "Inventory & Stock",
+        url: "/dashboard/inventory",
+        icon: Package,
+      },
+      {
+        title: "Purchase Management",
+        url: "/dashboard/purchases",
+        icon: Truck,
       },
     ],
   },

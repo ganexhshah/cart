@@ -1376,7 +1376,7 @@ export default function ProfilePage() {
                     </TableCell>
                     <TableCell>{bill.description}</TableCell>
                     <TableCell className="font-medium">
-                      ₹{bill.amount.toFixed(2)}
+                      ₹{Number(bill.amount || 0).toFixed(2)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

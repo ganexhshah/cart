@@ -28,6 +28,7 @@ import {
   Loader2
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import QRCodeLib from 'qrcode';
 
 export default function TablesPage() {
   const [tables, setTables] = useState<RestaurantTable[]>([]);
@@ -53,6 +54,8 @@ export default function TablesPage() {
     private_tables: 0
   });
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
 
   // Form state for adding/editing tables
   const [formData, setFormData] = useState({
@@ -152,6 +155,36 @@ export default function TablesPage() {
     }
   };
 
+  const showQRCode = async (table: RestaurantTable) => {
+    try {
+      // Get QR code data from backend
+      const qrResponse = await tableApi.generateTableQR(table.id);
+      if (!qrResponse.success) {
+        console.error('Failed to get QR data');
+        return;
+      }
+
+      const qrData = qrResponse.data;
+      
+      // Generate QR code as data URL
+      const qrCodeDataURL = await QRCodeLib.toDataURL(qrData.url, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      });
+
+      setQrCodeUrl(qrCodeDataURL);
+      setSelectedTable(table);
+      setShowQRDialog(true);
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      alert('Failed to generate QR code. Please try again.');
+    }
+  };
+
   const generateQRCode = async (table: RestaurantTable) => {
     const canvas = qrCanvasRef.current;
     if (!canvas) return;
@@ -167,59 +200,137 @@ export default function TablesPage() {
 
       // Set canvas size
       canvas.width = 300;
-      canvas.height = 350;
+      canvas.height = 400;
 
       // White background
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw QR code placeholder (in production, use a QR library like qrcode)
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(50, 50, 200, 200);
+      // Generate actual QR code
+      const qrCodeDataURL = await QRCodeLib.toDataURL(qrData.url, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      });
+
+      // Load and draw QR code image
+      const qrImage = new Image();
+      qrImage.onload = () => {
+        // Draw QR code
+        ctx.drawImage(qrImage, 50, 50, 200, 200);
+
+        // Draw table info below QR code
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Table ${table.table_number}`, 150, 280);
+        
+        ctx.font = '16px Arial';
+        ctx.fillText(table.name, 150, 305);
+        
+        ctx.font = '14px Arial';
+        ctx.fillText(`Capacity: ${table.capacity} people`, 150, 325);
+        
+        if (table.location) {
+          ctx.fillText(`Location: ${table.location}`, 150, 345);
+        }
+
+        // Add instructions
+        ctx.font = '12px Arial';
+        ctx.fillStyle = '#666666';
+        ctx.fillText('Scan this QR code to access the menu', 150, 375);
+      };
+      qrImage.src = qrCodeDataURL;
+
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      
+      // Fallback to text-based QR code placeholder
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      canvas.width = 300;
+      canvas.height = 400;
+
       ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillRect(50, 50, 200, 200);
+      
+      ctx.fillStyle = '#000000';
       ctx.font = 'bold 16px Arial';
       ctx.textAlign = 'center';
       ctx.fillText('QR CODE', 150, 140);
-      ctx.fillText(table.table_number, 150, 160);
-
-      // Draw table info
-      ctx.fillStyle = '#000000';
+      ctx.fillText('UNAVAILABLE', 150, 160);
+      
       ctx.font = 'bold 18px Arial';
-      ctx.fillText(table.name, 150, 280);
+      ctx.fillText(`Table ${table.table_number}`, 150, 280);
+      ctx.font = '16px Arial';
+      ctx.fillText(table.name, 150, 305);
       ctx.font = '14px Arial';
-      ctx.fillText(`Capacity: ${table.capacity} people`, 150, 305);
-      ctx.fillText(table.location || '', 150, 325);
-    } catch (error) {
-      console.error('Error generating QR code:', error);
+      ctx.fillText(`Capacity: ${table.capacity} people`, 150, 325);
+      if (table.location) {
+        ctx.fillText(`Location: ${table.location}`, 150, 345);
+      }
     }
   };
 
-  const downloadQRCode = (table: RestaurantTable) => {
-    generateQRCode(table);
-    
-    const canvas = qrCanvasRef.current;
-    if (!canvas) return;
+  const downloadQRCode = async (table: RestaurantTable) => {
+    try {
+      // Get QR code data from backend
+      const qrResponse = await tableApi.generateTableQR(table.id);
+      if (!qrResponse.success) {
+        console.error('Failed to get QR data');
+        return;
+      }
 
-    // Convert canvas to blob and download
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
+      const qrData = qrResponse.data;
+      
+      // Generate QR code as data URL
+      const qrCodeDataURL = await QRCodeLib.toDataURL(qrData.url, {
+        width: 512,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      });
+
+      // Create safe filename - handle undefined/null name
+      const tableName = table.name || 'table';
+      const safeTableName = tableName.replace(/\s+/g, '-');
+      const filename = `table-${table.table_number}-${safeTableName}-qr.png`;
+
+      // Create download link
       const link = document.createElement('a');
-      link.href = url;
-      link.download = `${table.table_number}-${table.name}-QR.png`;
+      link.href = qrCodeDataURL;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    });
+    } catch (error) {
+      console.error('Error downloading QR code:', error);
+      alert('Failed to download QR code. Please try again.');
+    }
   };
 
-  const downloadAllQRCodes = () => {
-    tables.forEach((table, index) => {
-      setTimeout(() => {
-        downloadQRCode(table);
-      }, index * 500); // Delay to avoid browser blocking multiple downloads
-    });
+  const downloadAllQRCodes = async () => {
+    for (let i = 0; i < tables.length; i++) {
+      const table = tables[i];
+      try {
+        await downloadQRCode(table);
+        // Add delay between downloads to avoid browser blocking
+        if (i < tables.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      } catch (error) {
+        console.error(`Error downloading QR for table ${table.name}:`, error);
+      }
+    }
   };
 
   const handleAddTable = async () => {
@@ -574,11 +685,7 @@ export default function TablesPage() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => {
-                        setSelectedTable(table);
-                        setShowQRDialog(true);
-                        setTimeout(() => generateQRCode(table), 100);
-                      }}>
+                      <DropdownMenuItem onClick={() => showQRCode(table)}>
                         <QrCode className="w-4 h-4 mr-2" />
                         View QR Code
                       </DropdownMenuItem>
@@ -698,11 +805,7 @@ export default function TablesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => {
-                            setSelectedTable(table);
-                            setShowQRDialog(true);
-                            setTimeout(() => generateQRCode(table), 100);
-                          }}>
+                          <DropdownMenuItem onClick={() => showQRCode(table)}>
                             <QrCode className="w-4 h-4 mr-2" />
                             View QR Code
                           </DropdownMenuItem>
@@ -740,31 +843,48 @@ export default function TablesPage() {
             </DialogHeader>
             
             <div className="flex flex-col items-center gap-4 py-4">
-              <canvas
-                ref={qrCanvasRef}
-                className="border rounded-lg shadow-sm"
-              />
-              
-              {selectedTable && (
-                <div className="text-center space-y-2">
-                  <p className="text-sm text-gray-600">
-                    <strong>Table:</strong> {selectedTable.name}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    <strong>Number:</strong> {selectedTable.table_number}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    <strong>Location:</strong> {selectedTable.location || 'No location'}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    <strong>Capacity:</strong> {selectedTable.capacity} people
-                  </p>
+              {qrCodeUrl ? (
+                <div className="flex flex-col items-center gap-4">
+                  <img 
+                    src={qrCodeUrl} 
+                    alt="QR Code" 
+                    className="border rounded-lg shadow-sm"
+                    width={256}
+                    height={256}
+                  />
+                  
+                  {selectedTable && (
+                    <div className="text-center space-y-2">
+                      <p className="text-sm text-gray-600">
+                        <strong>Table:</strong> {selectedTable.name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <strong>Number:</strong> {selectedTable.table_number}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <strong>Location:</strong> {selectedTable.location || 'No location'}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <strong>Capacity:</strong> {selectedTable.capacity} people
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-64 h-64 border rounded-lg shadow-sm flex items-center justify-center bg-gray-50">
+                    <div className="text-center">
+                      <QrCode className="w-12 h-12 mx-auto text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-500">Loading QR Code...</p>
+                    </div>
+                  </div>
                 </div>
               )}
               
               <Button
                 onClick={() => selectedTable && downloadQRCode(selectedTable)}
                 className="w-full"
+                disabled={!qrCodeUrl}
               >
                 <Download className="w-4 h-4 mr-2" />
                 Download QR Code

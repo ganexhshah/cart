@@ -80,7 +80,7 @@ export default function MenuPage() {
     try {
       setIsLoading(true);
       
-      // Load categories
+      // Load categories for user's restaurants
       const categoriesResponse = await menuApi.getCategories();
       if (categoriesResponse.success) {
         setCategories(categoriesResponse.data);
@@ -115,7 +115,7 @@ export default function MenuPage() {
     try {
       const filters = {
         search: searchTerm || undefined,
-        categoryId: categoryFilter !== 'all' ? parseInt(categoryFilter) : undefined
+        categoryId: categoryFilter !== 'all' ? categoryFilter : undefined // Don't parse as integer
       };
 
       const response = await menuApi.getUserMenuItems(filters);
@@ -144,7 +144,7 @@ export default function MenuPage() {
     try {
       const itemData = {
         restaurantId: newItem.restaurantId,
-        categoryId: parseInt(newItem.categoryId),
+        categoryId: newItem.categoryId || null, // Don't parse as integer, keep as UUID string
         name: newItem.name,
         description: newItem.description,
         price: parseFloat(newItem.price),
@@ -252,13 +252,13 @@ export default function MenuPage() {
                          item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.restaurant_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === "all" || item.category_id?.toString() === categoryFilter;
+    const matchesCategory = categoryFilter === "all" || item.category_id === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
   const categoryOptions = [
     { value: "all", label: "All" },
-    ...categories.map(cat => ({ value: cat.id.toString(), label: cat.name }))
+    ...categories.map(cat => ({ value: cat.id, label: cat.name })) // Don't convert to string, already UUID
   ];
 
   return (
@@ -767,7 +767,7 @@ export default function MenuPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id.toString()}>
+                      <SelectItem key={category.id} value={category.id}>
                         {category.name}
                       </SelectItem>
                     ))}

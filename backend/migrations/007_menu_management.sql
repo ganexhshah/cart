@@ -1,6 +1,8 @@
--- Menu Categories Table
-CREATE TABLE IF NOT EXISTS menu_categories (
-    id SERIAL PRIMARY KEY,
+-- Menu Categories Table (Updated to match initial schema)
+DROP TABLE IF EXISTS menu_categories CASCADE;
+CREATE TABLE menu_categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     description TEXT,
     display_order INTEGER DEFAULT 0,
@@ -9,11 +11,12 @@ CREATE TABLE IF NOT EXISTS menu_categories (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Menu Items Table
-CREATE TABLE IF NOT EXISTS menu_items (
+-- Menu Items Table (Updated to use UUID for category_id)
+DROP TABLE IF EXISTS menu_items CASCADE;
+CREATE TABLE menu_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
-    category_id INTEGER REFERENCES menu_categories(id) ON DELETE SET NULL,
+    category_id UUID REFERENCES menu_categories(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     price DECIMAL(10, 2) NOT NULL,
@@ -35,8 +38,9 @@ CREATE TABLE IF NOT EXISTS menu_items (
 );
 
 -- Menu Item Stats Table
-CREATE TABLE IF NOT EXISTS menu_item_stats (
-    id SERIAL PRIMARY KEY,
+DROP TABLE IF EXISTS menu_item_stats CASCADE;
+CREATE TABLE menu_item_stats (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     menu_item_id UUID NOT NULL REFERENCES menu_items(id) ON DELETE CASCADE,
     total_orders INTEGER DEFAULT 0,
     total_revenue DECIMAL(12, 2) DEFAULT 0,
@@ -48,13 +52,8 @@ CREATE TABLE IF NOT EXISTS menu_item_stats (
     UNIQUE(menu_item_id)
 );
 
--- Insert default categories
-INSERT INTO menu_categories (name, description, display_order) VALUES
-('Pizza', 'Traditional and specialty pizzas', 1),
-('Burgers', 'Beef, chicken, and veggie burgers', 2),
-('Sushi', 'Fresh sushi rolls and sashimi', 3),
-('Salads', 'Fresh and healthy salad options', 4),
-('Appetizers', 'Starters and small plates', 5),
-('Desserts', 'Sweet treats and desserts', 6),
-('Beverages', 'Drinks and refreshments', 7)
-ON CONFLICT DO NOTHING;
+-- Insert default categories with restaurant_id (you'll need to update this with actual restaurant IDs)
+-- Note: This will need to be updated with actual restaurant IDs from your database
+-- INSERT INTO menu_categories (restaurant_id, name, description, display_order) 
+-- SELECT r.id, 'Pizza', 'Traditional and specialty pizzas', 1 FROM restaurants r LIMIT 1;
+-- (Add similar inserts for other categories)
