@@ -5,6 +5,11 @@ const { authenticate, authorize } = require('../middleware/auth.middleware');
 const { validateOrder, validateUUID } = require('../middleware/validation.middleware');
 const { orderLimiter } = require('../middleware/rateLimit.middleware');
 
+// Public routes (no authentication required)
+router.post('/guest', orderLimiter, validateOrder, orderController.createGuestOrder);
+router.get('/guest/:id', validateUUID, orderController.getGuestOrder);
+
+// Protected routes
 router.post('/', authenticate, orderLimiter, validateOrder, orderController.createOrder);
 router.get('/', authenticate, orderController.getOrders);
 router.get('/:id', authenticate, validateUUID, orderController.getOrderById);

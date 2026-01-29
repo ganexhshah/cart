@@ -12,11 +12,16 @@ router.post('/verify-otp', authLimiter, authController.verifyOTP);
 // Legacy password-based authentication
 router.post('/register', validateRegister, authController.register);
 router.post('/login', authLimiter, validateLogin, authController.login);
+router.post('/waiter-login', authLimiter, authController.waiterLogin);
 
 // Token management
 router.post('/refresh', authController.refreshToken);
 router.post('/force-refresh', authenticate, authController.forceRefresh);
 router.post('/logout', authenticate, authController.logout);
 router.get('/me', authenticate, authController.getMe);
+
+// Google OAuth routes
+router.get('/google', authController.googleAuth);
+router.get('/google/callback', authController.googleCallback);
 
 module.exports = router;

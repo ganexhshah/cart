@@ -14,6 +14,8 @@ router.use(authenticate);
 // User's menu management
 router.get('/my-items', menuController.getUserMenuItems);
 router.post('/items', menuController.createMenuItem);
+router.post('/bulk-import', menuController.bulkImportMenuItems);
+router.get('/sample-template', menuController.getSampleTemplate);
 router.put('/items/:id', menuController.updateMenuItem);
 router.delete('/items/:id', menuController.deleteMenuItem);
 router.patch('/items/:id/status', menuController.updateItemStatus);

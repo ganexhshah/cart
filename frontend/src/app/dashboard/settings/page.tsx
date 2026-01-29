@@ -22,104 +22,79 @@ import {
   Check,
   AlertCircle
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { userApi } from "@/lib/user";
+import { useAuth } from "@/hooks/useAuth";
+import { useSettings } from "@/hooks/useSettings";
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState({
-    language: "en",
-    timezone: "America/New_York",
-    dateFormat: "MM/DD/YYYY",
-    currency: "INR",
-    autoSave: true,
-    compactMode: false,
-    showTips: true,
-    analyticsTracking: true,
-    marketingEmails: false,
-    systemNotifications: true
-  });
+  const { user } = useAuth();
+  const {
+    settings,
+    hasChanges,
+    isLoading,
+    isSaving,
+    error,
+    saveStatus,
+    updateSetting,
+    saveSettings,
+    resetSettings,
+    resetAllSettings
+  } = useSettings();
 
-  const [originalSettings, setOriginalSettings] = useState({ ...settings });
-  const [hasChanges, setHasChanges] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
-
-  // Load settings on mount
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        setIsLoading(true);
-        const response = await userApi.getSettings();
-        if (response.success && response.data) {
-          const loadedSettings = {
-            language: response.data.language || 'en',
-            timezone: response.data.timezone || 'America/New_York',
-            dateFormat: response.data.dateFormat || 'MM/DD/YYYY',
-            currency: response.data.currency || 'INR',
-            autoSave: response.data.autoSave !== undefined ? response.data.autoSave : true,
-            compactMode: response.data.compactMode !== undefined ? response.data.compactMode : false,
-            showTips: response.data.showTips !== undefined ? response.data.showTips : true,
-            analyticsTracking: response.data.analyticsTracking !== undefined ? response.data.analyticsTracking : true,
-            marketingEmails: response.data.marketingEmails !== undefined ? response.data.marketingEmails : false,
-            systemNotifications: response.data.systemNotifications !== undefined ? response.data.systemNotifications : true
-          };
-          setSettings(loadedSettings);
-          setOriginalSettings(loadedSettings);
-        }
-      } catch (error) {
-        console.error('Failed to load settings:', error);
-      } finally {
-        setIsLoading(false);
-      }
+  const handleExportData = () => {
+    const dataToExport = {
+      user: user ? {
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        createdAt: user.createdAt
+      } : null,
+      settings,
+      exportedAt: new Date().toISOString()
     };
-
-    loadSettings();
-  }, []);
-
-  // Check for changes
-  useEffect(() => {
-    setHasChanges(JSON.stringify(settings) !== JSON.stringify(originalSettings));
-  }, [settings, originalSettings]);
-
-  const handleSettingChange = (key: string, value: any) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: value
-    }));
+    
+    const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `user-data-export-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    setSaveStatus('idle');
-
-    try {
-      const response = await userApi.updateSettings(settings);
-      if (response.success) {
-        setOriginalSettings({ ...settings });
-        setHasChanges(false);
-        setSaveStatus('success');
-        setTimeout(() => setSaveStatus('idle'), 3000);
-      }
-    } catch (error) {
-      console.error('Failed to save settings:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    } finally {
-      setIsSaving(false);
+  const handleClearCache = () => {
+    if (confirm('Are you sure you want to clear the application cache? This will refresh the page.')) {
+      // Clear localStorage except for auth tokens
+      const token = localStorage.getItem('token');
+      const refreshToken = localStorage.getItem('refreshToken');
+      const userData = localStorage.getItem('user');
+      
+      localStorage.clear();
+      
+      if (token) localStorage.setItem('token', token);
+      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+      if (userData) localStorage.setItem('user', userData);
+      
+      // Reload the page
+      window.location.reload();
     }
   };
 
-  const handleReset = () => {
-    setSettings({ ...originalSettings });
-    setHasChanges(false);
+  const handleResetAllSettings = async () => {
+    if (confirm('Are you sure you want to reset all settings to default values? This action cannot be undone.')) {
+      await resetAllSettings();
+    }
   };
 
   if (isLoading) {
     return (
       <DashboardLayout title="Settings">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="flex items-center justify-center min-h-100">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading your settings...</p>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -141,11 +116,11 @@ export default function SettingsPage() {
           </div>
           {hasChanges && (
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleReset} disabled={isSaving}>
+              <Button variant="outline" onClick={resetSettings} disabled={isSaving}>
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Reset
               </Button>
-              <Button onClick={handleSave} disabled={isSaving}>
+              <Button onClick={saveSettings} disabled={isSaving}>
                 {isSaving ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -163,6 +138,13 @@ export default function SettingsPage() {
         </div>
 
         {/* Status Messages */}
+        {error && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-800">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">{error}</span>
+          </div>
+        )}
+        
         {saveStatus === 'success' && (
           <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-md text-green-800">
             <Check className="h-4 w-4" />
@@ -170,7 +152,7 @@ export default function SettingsPage() {
           </div>
         )}
         
-        {saveStatus === 'error' && (
+        {saveStatus === 'error' && !error && (
           <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-800">
             <AlertCircle className="h-4 w-4" />
             <span className="text-sm">Failed to save settings. Please try again.</span>
@@ -213,7 +195,7 @@ export default function SettingsPage() {
                   </div>
                   <Switch
                     checked={settings.compactMode}
-                    onCheckedChange={(checked) => handleSettingChange("compactMode", checked)}
+                    onCheckedChange={(checked) => updateSetting("compactMode", checked)}
                   />
                 </div>
 
@@ -228,7 +210,7 @@ export default function SettingsPage() {
                   </div>
                   <Switch
                     checked={settings.showTips}
-                    onCheckedChange={(checked) => handleSettingChange("showTips", checked)}
+                    onCheckedChange={(checked) => updateSetting("showTips", checked)}
                   />
                 </div>
               </CardContent>
@@ -251,7 +233,7 @@ export default function SettingsPage() {
                     <Label>Language</Label>
                     <Select 
                       value={settings.language} 
-                      onValueChange={(value) => handleSettingChange("language", value)}
+                      onValueChange={(value) => updateSetting("language", value)}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -270,19 +252,23 @@ export default function SettingsPage() {
                     <Label>Timezone</Label>
                     <Select 
                       value={settings.timezone} 
-                      onValueChange={(value) => handleSettingChange("timezone", value)}
+                      onValueChange={(value) => updateSetting("timezone", value)}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="America/New_York">Eastern Time</SelectItem>
-                        <SelectItem value="America/Chicago">Central Time</SelectItem>
-                        <SelectItem value="America/Denver">Mountain Time</SelectItem>
-                        <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
-                        <SelectItem value="Europe/London">London</SelectItem>
-                        <SelectItem value="Europe/Paris">Paris</SelectItem>
-                        <SelectItem value="Asia/Tokyo">Tokyo</SelectItem>
+                        <SelectItem value="America/New_York">Eastern Time (UTC-5)</SelectItem>
+                        <SelectItem value="America/Chicago">Central Time (UTC-6)</SelectItem>
+                        <SelectItem value="America/Denver">Mountain Time (UTC-7)</SelectItem>
+                        <SelectItem value="America/Los_Angeles">Pacific Time (UTC-8)</SelectItem>
+                        <SelectItem value="Europe/London">London (UTC+0)</SelectItem>
+                        <SelectItem value="Europe/Paris">Paris (UTC+1)</SelectItem>
+                        <SelectItem value="Europe/Berlin">Berlin (UTC+1)</SelectItem>
+                        <SelectItem value="Asia/Tokyo">Tokyo (UTC+9)</SelectItem>
+                        <SelectItem value="Asia/Shanghai">Shanghai (UTC+8)</SelectItem>
+                        <SelectItem value="Asia/Kolkata">India (UTC+5:30)</SelectItem>
+                        <SelectItem value="Australia/Sydney">Sydney (UTC+11)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -291,7 +277,7 @@ export default function SettingsPage() {
                     <Label>Date Format</Label>
                     <Select 
                       value={settings.dateFormat} 
-                      onValueChange={(value) => handleSettingChange("dateFormat", value)}
+                      onValueChange={(value) => updateSetting("dateFormat", value)}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -308,18 +294,20 @@ export default function SettingsPage() {
                     <Label>Currency</Label>
                     <Select 
                       value={settings.currency} 
-                      onValueChange={(value) => handleSettingChange("currency", value)}
+                      onValueChange={(value) => updateSetting("currency", value)}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="INR">INR (₹)</SelectItem>
-                        <SelectItem value="USD">USD ($)</SelectItem>
-                        <SelectItem value="EUR">EUR (€)</SelectItem>
-                        <SelectItem value="GBP">GBP (£)</SelectItem>
-                        <SelectItem value="CAD">CAD (C$)</SelectItem>
-                        <SelectItem value="AUD">AUD (A$)</SelectItem>
+                        <SelectItem value="INR">INR (₹) - Indian Rupee</SelectItem>
+                        <SelectItem value="USD">USD ($) - US Dollar</SelectItem>
+                        <SelectItem value="EUR">EUR (€) - Euro</SelectItem>
+                        <SelectItem value="GBP">GBP (£) - British Pound</SelectItem>
+                        <SelectItem value="CAD">CAD (C$) - Canadian Dollar</SelectItem>
+                        <SelectItem value="AUD">AUD (A$) - Australian Dollar</SelectItem>
+                        <SelectItem value="JPY">JPY (¥) - Japanese Yen</SelectItem>
+                        <SelectItem value="CNY">CNY (¥) - Chinese Yuan</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -348,7 +336,7 @@ export default function SettingsPage() {
                   </div>
                   <Switch
                     checked={settings.systemNotifications}
-                    onCheckedChange={(checked) => handleSettingChange("systemNotifications", checked)}
+                    onCheckedChange={(checked) => updateSetting("systemNotifications", checked)}
                   />
                 </div>
 
@@ -363,7 +351,7 @@ export default function SettingsPage() {
                   </div>
                   <Switch
                     checked={settings.marketingEmails}
-                    onCheckedChange={(checked) => handleSettingChange("marketingEmails", checked)}
+                    onCheckedChange={(checked) => updateSetting("marketingEmails", checked)}
                   />
                 </div>
               </CardContent>
@@ -390,7 +378,7 @@ export default function SettingsPage() {
                   </div>
                   <Switch
                     checked={settings.analyticsTracking}
-                    onCheckedChange={(checked) => handleSettingChange("analyticsTracking", checked)}
+                    onCheckedChange={(checked) => updateSetting("analyticsTracking", checked)}
                   />
                 </div>
 
@@ -405,7 +393,7 @@ export default function SettingsPage() {
                   </div>
                   <Switch
                     checked={settings.autoSave}
-                    onCheckedChange={(checked) => handleSettingChange("autoSave", checked)}
+                    onCheckedChange={(checked) => updateSetting("autoSave", checked)}
                   />
                 </div>
               </CardContent>
@@ -420,15 +408,30 @@ export default function SettingsPage() {
                 <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={handleExportData}
+                  disabled={isSaving}
+                >
                   <Database className="w-4 h-4 mr-2" />
                   Export Data
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={handleClearCache}
+                  disabled={isSaving}
+                >
                   <Zap className="w-4 h-4 mr-2" />
                   Clear Cache
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={handleResetAllSettings}
+                  disabled={isSaving}
+                >
                   <RotateCcw className="w-4 h-4 mr-2" />
                   Reset All Settings
                 </Button>
@@ -448,7 +451,7 @@ export default function SettingsPage() {
                 <Separator />
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Last Updated</span>
-                  <span>Jan 12, 2024</span>
+                  <span>Jan 26, 2026</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between">
@@ -460,6 +463,15 @@ export default function SettingsPage() {
                   <span className="text-muted-foreground">API Status</span>
                   <span className="text-green-600">Online</span>
                 </div>
+                {user && (
+                  <>
+                    <Separator />
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">User Role</span>
+                      <span className="capitalize">{user.role}</span>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 

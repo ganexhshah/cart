@@ -4,6 +4,9 @@ const logger = require('../utils/logger');
 class EmailService {
   async sendEmail({ to, subject, html, text }) {
     try {
+      console.log('Attempting to send email to:', to);
+      console.log('Email subject:', subject);
+      
       const mailOptions = {
         from: `"${process.env.FROM_NAME}" <${process.env.FROM_EMAIL}>`,
         to,
@@ -12,10 +15,18 @@ class EmailService {
         text
       };
 
+      console.log('Mail options:', {
+        from: mailOptions.from,
+        to: mailOptions.to,
+        subject: mailOptions.subject
+      });
+
       const info = await transporter.sendMail(mailOptions);
+      console.log(`Email sent successfully: ${info.messageId}`);
       logger.info(`Email sent: ${info.messageId}`);
       return info;
     } catch (error) {
+      console.error('Email sending failed:', error);
       logger.error('Email sending failed:', error);
       throw error;
     }
@@ -296,7 +307,101 @@ class EmailService {
     });
   }
 
-  // Send OTP email
+  async sendStaffWelcomeEmail(staffData) {
+    const { email, name, password, staffNumber, role, restaurant, restaurantAddress, restaurantPhone } = staffData;
+    
+    console.log('Attempting to send staff welcome email to:', email);
+    console.log('Staff data:', { name, staffNumber, role, restaurant });
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #8B5CF6; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background: #f9f9f9; }
+          .info-box { background: white; padding: 15px; margin: 20px 0; border-radius: 5px; border: 1px solid #e5e7eb; }
+          .credentials-box { background: #FEF3C7; padding: 20px; margin: 20px 0; border-radius: 5px; border: 1px solid #F59E0B; }
+          .button { display: inline-block; padding: 12px 24px; background: #8B5CF6; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .warning { background: #FEF2F2; border-left: 4px solid #EF4444; padding: 15px; margin: 20px 0; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Welcome to the Team!</h1>
+          </div>
+          <div class="content">
+            <h2>Hello ${name}!</h2>
+            <p>You have been added as a staff member at <strong>${restaurant}</strong>. We're excited to have you join our team!</p>
+            
+            <div class="info-box">
+              <h3>Restaurant Information:</h3>
+              <p><strong>Restaurant:</strong> ${restaurant}</p>
+              <p><strong>Address:</strong> ${restaurantAddress}</p>
+              <p><strong>Phone:</strong> ${restaurantPhone}</p>
+            </div>
+
+            <div class="info-box">
+              <h3>Your Staff Details:</h3>
+              <p><strong>Staff Number:</strong> ${staffNumber}</p>
+              <p><strong>Role:</strong> ${role.charAt(0).toUpperCase() + role.slice(1)}</p>
+              <p><strong>Email:</strong> ${email}</p>
+            </div>
+            
+            <div class="credentials-box">
+              <h3>🔐 Your Login Credentials</h3>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Temporary Password:</strong> <code style="background: #fff; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${password}</code></p>
+              <p style="margin-top: 15px; font-size: 14px; color: #92400E;">
+                <strong>Important:</strong> Please change this password after your first login for security.
+              </p>
+            </div>
+            
+            <div style="text-align: center;">
+              <a href="${process.env.FRONTEND_URL}/waiter/login" class="button">Login to Staff Portal</a>
+            </div>
+            
+            <div class="warning">
+              <p><strong>Security Guidelines:</strong></p>
+              <ul>
+                <li>Keep your login credentials secure</li>
+                <li>Change your password after first login</li>
+                <li>Never share your credentials with others</li>
+                <li>Contact your manager if you have any issues</li>
+              </ul>
+            </div>
+            
+            <p>If you have any questions or need assistance, please don't hesitate to contact your manager or the restaurant directly.</p>
+            
+            <p>Welcome aboard!</p>
+          </div>
+          <div class="footer">
+            <p>&copy; 2025 ${restaurant}. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      const result = await this.sendEmail({
+        to: email,
+        subject: `Welcome to ${restaurant} - Your Staff Account Details`,
+        html,
+        text: `Welcome to ${restaurant}! Your staff account has been created. Email: ${email}, Temporary Password: ${password}. Please login at ${process.env.FRONTEND_URL}/waiter/login and change your password.`
+      });
+      
+      console.log('Staff welcome email sent successfully:', result.messageId);
+      return result;
+    } catch (error) {
+      console.error('Error sending staff welcome email:', error);
+      throw error;
+    }
+  }
   async sendOTPEmail(email, otpCode, purpose = 'login') {
     const purposeText = {
       login: 'Login',

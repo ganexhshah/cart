@@ -91,21 +91,6 @@ class SubscriptionService {
         subscription = insertResult.rows[0];
       }
 
-      // Create billing record
-      const invoiceNumber = `INV-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-      await client.query(
-        `INSERT INTO billing_history 
-         (user_id, subscription_id, invoice_number, description, amount, status, payment_date)
-         VALUES ($1, $2, $3, $4, $5, 'paid', CURRENT_TIMESTAMP)`,
-        [
-          userId,
-          subscription.id,
-          invoiceNumber,
-          `${plan.name} Plan - ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}`,
-          plan.price
-        ]
-      );
-
       await client.query('COMMIT');
 
       // Fetch complete subscription details
@@ -140,25 +125,6 @@ class SubscriptionService {
       return result.rows[0];
     } catch (error) {
       logger.error('Error cancelling subscription:', error);
-      throw error;
-    }
-  }
-
-  // Get billing history
-  async getBillingHistory(userId, limit = 20) {
-    try {
-      const result = await db.query(
-        `SELECT id, invoice_number, description, amount, currency, status, 
-                payment_method, payment_date, due_date, created_at
-         FROM billing_history
-         WHERE user_id = $1
-         ORDER BY created_at DESC
-         LIMIT $2`,
-        [userId, limit]
-      );
-      return result.rows;
-    } catch (error) {
-      logger.error('Error fetching billing history:', error);
       throw error;
     }
   }

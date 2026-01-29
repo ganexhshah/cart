@@ -8,6 +8,8 @@ router.get('/test/materials', inventoryController.getRawMaterials);
 router.get('/test/transactions', inventoryController.getStockTransactions);
 router.get('/test/alerts', inventoryController.getStockAlerts);
 router.get('/test/summary', inventoryController.getInventorySummary);
+router.post('/test/transactions', inventoryController.recordStockTransaction);
+router.put('/test/alerts/:id/resolve', inventoryController.resolveStockAlert);
 
 // Apply authentication to all other routes
 router.use(authenticate);

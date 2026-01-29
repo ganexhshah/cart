@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, ApiResponse } from './api';
 
 export interface RawMaterial {
   id: string;
@@ -69,15 +69,20 @@ export const getRawMaterials = async (params?: {
   page?: number;
   limit?: number;
 }) => {
-  // Use test endpoint for now
-  const response = await api.get('/inventory/test/materials', { params });
-  return response.data;
+  try {
+    // Use authenticated endpoint
+    const response = await api.get('/inventory/materials', { params }) as ApiResponse<RawMaterial[]>;
+    return response;
+  } catch (error) {
+    console.error('Error fetching raw materials:', error);
+    throw error;
+  }
 };
 
 // Get raw material by ID
 export const getRawMaterialById = async (materialId: string) => {
-  const response = await api.get(`/inventory/materials/${materialId}`);
-  return response.data;
+  const response = await api.get(`/inventory/materials/${materialId}`) as ApiResponse<RawMaterial>;
+  return response;
 };
 
 // Create raw material
@@ -91,8 +96,8 @@ export const createRawMaterial = async (materialData: {
   costPerUnit: number;
   initialStock?: number;
 }) => {
-  const response = await api.post('/inventory/materials', materialData);
-  return response.data;
+  const response = await api.post('/inventory/materials', materialData) as ApiResponse<RawMaterial>;
+  return response;
 };
 
 // Update raw material
@@ -106,14 +111,14 @@ export const updateRawMaterial = async (materialId: string, materialData: {
   costPerUnit?: number;
   isActive?: boolean;
 }) => {
-  const response = await api.put(`/inventory/materials/${materialId}`, materialData);
-  return response.data;
+  const response = await api.put(`/inventory/materials/${materialId}`, materialData) as ApiResponse<RawMaterial>;
+  return response;
 };
 
 // Delete raw material
 export const deleteRawMaterial = async (materialId: string) => {
-  const response = await api.delete(`/inventory/materials/${materialId}`);
-  return response.data;
+  const response = await api.delete(`/inventory/materials/${materialId}`) as ApiResponse<any>;
+  return response;
 };
 
 // Record stock transaction
@@ -126,8 +131,8 @@ export const recordStockTransaction = async (transactionData: {
   referenceId?: string;
   notes?: string;
 }) => {
-  const response = await api.post('/inventory/transactions', transactionData);
-  return response.data;
+  const response = await api.post('/inventory/transactions', transactionData) as ApiResponse<StockTransaction>;
+  return response;
 };
 
 // Get stock transactions
@@ -139,9 +144,14 @@ export const getStockTransactions = async (params?: {
   page?: number;
   limit?: number;
 }) => {
-  // Use test endpoint for now
-  const response = await api.get('/inventory/test/transactions', { params });
-  return response.data;
+  try {
+    // Use authenticated endpoint
+    const response = await api.get('/inventory/transactions', { params }) as ApiResponse<StockTransaction[]>;
+    return response;
+  } catch (error) {
+    console.error('Error fetching stock transactions:', error);
+    throw error;
+  }
 };
 
 // Get stock alerts
@@ -151,15 +161,20 @@ export const getStockAlerts = async (params?: {
   page?: number;
   limit?: number;
 }) => {
-  // Use test endpoint for now
-  const response = await api.get('/inventory/test/alerts', { params });
-  return response.data;
+  try {
+    // Use authenticated endpoint
+    const response = await api.get('/inventory/alerts', { params }) as ApiResponse<StockAlert[]>;
+    return response;
+  } catch (error) {
+    console.error('Error fetching stock alerts:', error);
+    throw error;
+  }
 };
 
 // Resolve stock alert
 export const resolveStockAlert = async (alertId: string) => {
-  const response = await api.put(`/inventory/alerts/${alertId}/resolve`);
-  return response.data;
+  const response = await api.put(`/inventory/alerts/${alertId}/resolve`) as ApiResponse<StockAlert>;
+  return response;
 };
 
 // Get usage tracking
@@ -170,8 +185,8 @@ export const getUsageTracking = async (params?: {
   page?: number;
   limit?: number;
 }) => {
-  const response = await api.get('/inventory/usage', { params });
-  return response.data;
+  const response = await api.get('/inventory/usage', { params }) as ApiResponse<UsageTracking[]>;
+  return response;
 };
 
 // Record daily usage
@@ -180,21 +195,26 @@ export const recordDailyUsage = async (usageData: Array<{
   quantityUsed: number;
   notes?: string;
 }>) => {
-  const response = await api.post('/inventory/usage/daily', { usageData });
-  return response.data;
+  const response = await api.post('/inventory/usage/daily', { usageData }) as ApiResponse<any>;
+  return response;
 };
 
 // Get inventory summary
 export const getInventorySummary = async () => {
-  // Use test endpoint for now
-  const response = await api.get('/inventory/test/summary');
-  return response.data;
+  try {
+    // Use authenticated endpoint
+    const response = await api.get('/inventory/summary') as ApiResponse<any>;
+    return response;
+  } catch (error) {
+    console.error('Error fetching inventory summary:', error);
+    throw error;
+  }
 };
 
 // Get low stock items
 export const getLowStockItems = async () => {
-  const response = await api.get('/inventory/low-stock');
-  return response.data;
+  const response = await api.get('/inventory/low-stock') as ApiResponse<RawMaterial[]>;
+  return response;
 };
 
 // Get inventory valuation
@@ -202,8 +222,8 @@ export const getInventoryValuation = async (params?: {
   category?: string;
   date?: string;
 }) => {
-  const response = await api.get('/inventory/valuation', { params });
-  return response.data;
+  const response = await api.get('/inventory/valuation', { params }) as ApiResponse<any>;
+  return response;
 };
 
 // Generate stock report
@@ -214,8 +234,8 @@ export const generateStockReport = async (params: {
   materialId?: string;
   category?: string;
 }) => {
-  const response = await api.get('/inventory/reports', { params });
-  return response.data;
+  const response = await api.get('/inventory/reports', { params }) as ApiResponse<any>;
+  return response;
 };
 
 // Update stock levels (bulk)
@@ -226,6 +246,6 @@ export const updateStockLevels = async (updates: Array<{
   reorderLevel?: number;
   costPerUnit?: number;
 }>) => {
-  const response = await api.put('/inventory/materials/bulk-update', { updates });
-  return response.data;
+  const response = await api.put('/inventory/materials/bulk-update', { updates }) as ApiResponse<any>;
+  return response;
 };

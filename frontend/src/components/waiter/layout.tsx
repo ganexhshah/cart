@@ -3,6 +3,7 @@
 import { WaiterSidebar } from "./sidebar";
 import { WaiterNavbar } from "./navbar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { Toaster } from "sonner";
 
 interface WaiterLayoutProps {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ export function WaiterLayout({ children, title }: WaiterLayoutProps) {
           </div>
         </main>
       </SidebarInset>
+      <Toaster position="top-right" />
     </SidebarProvider>
   );
 }

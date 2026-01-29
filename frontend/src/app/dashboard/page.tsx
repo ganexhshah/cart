@@ -27,6 +27,9 @@ import {
 import { restaurantApi } from "@/lib/restaurants";
 import { orderApi } from "@/lib/orders";
 import { authApi } from "@/lib/auth";
+import { RevenueChart } from "@/components/charts/revenue-chart";
+import { OrderStatusChart } from "@/components/charts/order-status-chart";
+import { RestaurantPerformanceChart } from "@/components/charts/restaurant-performance-chart";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -168,9 +171,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Content Tabs */}
-        <Tabs defaultValue="restaurants" className="space-y-4 lg:space-y-6">
+        <Tabs defaultValue="analytics" className="space-y-4 lg:space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <TabsList className="grid w-full sm:w-auto grid-cols-2">
+            <TabsList className="grid w-full sm:w-auto grid-cols-3">
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
               <TabsTrigger value="restaurants">Restaurants</TabsTrigger>
               <TabsTrigger value="orders">Recent Orders</TabsTrigger>
             </TabsList>
@@ -182,6 +186,55 @@ export default function DashboardPage() {
               </Button>
             </Link>
           </div>
+
+          <TabsContent value="analytics">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Revenue Trend (Last 7 Days)
+                  </CardTitle>
+                  <CardDescription>Daily revenue performance</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <RevenueChart orders={orders} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Order Status Distribution
+                  </CardTitle>
+                  <CardDescription>Current order status breakdown</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <OrderStatusChart orders={orders} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Store className="h-5 w-5" />
+                    Restaurant Performance
+                  </CardTitle>
+                  <CardDescription>Order count by restaurant</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <RestaurantPerformanceChart restaurants={restaurants} orders={orders} />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           <TabsContent value="restaurants">
             {restaurants.length === 0 ? (

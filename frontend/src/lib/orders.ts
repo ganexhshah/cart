@@ -3,11 +3,13 @@
 import { api, ApiResponse } from './api';
 
 export interface OrderItem {
+  id: string;
   menuItemId: string;
   name: string;
   price: number;
   quantity: number;
   specialInstructions?: string;
+  status?: 'pending' | 'preparing' | 'ready' | 'served';
 }
 
 export interface Order {
@@ -51,6 +53,14 @@ export interface CreateOrderData {
   deliveryAddress?: string;
 }
 
+export interface CreateGuestOrderData extends CreateOrderData {
+  customerInfo?: {
+    name?: string;
+    phone?: string;
+    email?: string;
+  };
+}
+
 export const orderApi = {
   // Get all orders
   getAll: async (params?: {
@@ -83,6 +93,16 @@ export const orderApi = {
     return api.post<ApiResponse<Order>>('/orders', data);
   },
 
+  // Create guest order (no authentication required)
+  createGuest: async (data: CreateGuestOrderData) => {
+    return api.post<ApiResponse<Order>>('/orders/guest', data);
+  },
+
+  // Get guest order by ID (no authentication required)
+  getGuestOrder: async (id: string) => {
+    return api.get<ApiResponse<Order>>(`/orders/guest/${id}`);
+  },
+
   // Update order status
   updateStatus: async (id: string, status: Order['status']) => {
     return api.patch<ApiResponse<Order>>(`/orders/${id}/status`, { status });
@@ -91,5 +111,28 @@ export const orderApi = {
   // Cancel order
   cancel: async (id: string) => {
     return api.delete<ApiResponse<void>>(`/orders/${id}`);
+  },
+
+  // Get table orders
+  getTableOrders: async (tableId: string) => {
+    // For now, we'll get all orders and filter on the frontend
+    // This should be optimized in the backend later
+    const response = await api.get<ApiResponse<Order[]>>('/orders');
+    if (response.success) {
+      // Filter orders by table_id on the frontend
+      const filteredOrders = response.data.filter((order: any) => order.table_id === tableId);
+      return { success: true, data: filteredOrders };
+    }
+    return response;
+  },
+
+  // Get menu items for restaurant
+  getMenuItems: async (restaurantId: string) => {
+    return api.get<ApiResponse<any[]>>(`/menu/items?restaurantId=${restaurantId}`);
+  },
+
+  // Update order status
+  updateOrderStatus: async (orderId: string, status: string) => {
+    return api.patch<ApiResponse<Order>>(`/orders/${orderId}/status`, { status });
   },
 };

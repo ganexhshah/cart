@@ -433,6 +433,94 @@ class MenuService {
       throw error;
     }
   }
+
+  // Bulk import menu items
+  async bulkImportMenuItems(userId, restaurantId, items) {
+    const client = await db.getClient();
+    const results = { created: 0, errors: [] };
+    
+    try {
+      await client.query('BEGIN');
+
+      // Verify user owns the restaurant
+      const restaurantCheck = await client.query(
+        'SELECT id FROM restaurants WHERE id = $1 AND owner_id = $2',
+        [restaurantId, userId]
+      );
+
+      if (restaurantCheck.rows.length === 0) {
+        throw new Error('Restaurant not found or access denied');
+      }
+
+      // Process each item
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        
+        try {
+          // Validate required fields
+          if (!item.name || !item.price || item.price <= 0) {
+            results.errors.push({
+              row: i + 1,
+              message: `Row ${i + 1}: Name and valid price are required`
+            });
+            continue;
+          }
+
+          // Create menu item
+          const result = await client.query(
+            `INSERT INTO menu_items (
+              restaurant_id, category_id, name, description, price, image_url,
+              status, preparation_time, calories, ingredients, allergens,
+              is_vegetarian, is_vegan, is_gluten_free, is_spicy, display_order, is_featured
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            RETURNING id`,
+            [
+              restaurantId,
+              item.categoryId || null,
+              item.name.trim(),
+              item.description || '',
+              parseFloat(item.price),
+              item.imageUrl || null,
+              item.status || 'available',
+              item.preparationTime || 15,
+              item.calories || null,
+              JSON.stringify(item.ingredients || []),
+              JSON.stringify(item.allergens || []),
+              Boolean(item.isVegetarian),
+              Boolean(item.isVegan),
+              Boolean(item.isGlutenFree),
+              Boolean(item.isSpicy),
+              item.displayOrder || 0,
+              Boolean(item.isFeatured)
+            ]
+          );
+
+          // Initialize stats record
+          await client.query(
+            'INSERT INTO menu_item_stats (menu_item_id) VALUES ($1)',
+            [result.rows[0].id]
+          );
+
+          results.created++;
+        } catch (itemError) {
+          logger.error(`Error creating menu item at row ${i + 1}:`, itemError);
+          results.errors.push({
+            row: i + 1,
+            message: `Row ${i + 1}: ${itemError.message}`
+          });
+        }
+      }
+
+      await client.query('COMMIT');
+      return results;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logger.error('Error in bulk import:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 module.exports = new MenuService();

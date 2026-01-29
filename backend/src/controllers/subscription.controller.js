@@ -78,27 +78,11 @@ class SubscriptionController {
         success: true,
         message: immediate 
           ? 'Subscription cancelled immediately' 
-          : 'Subscription will be cancelled at the end of the billing period',
+          : 'Subscription will be cancelled at the end of the current period',
         data: subscription
       });
     } catch (error) {
       logger.error('Error in cancelSubscription:', error);
-      next(error);
-    }
-  }
-
-  // Get billing history
-  async getBillingHistory(req, res, next) {
-    try {
-      const limit = parseInt(req.query.limit) || 20;
-      const history = await subscriptionService.getBillingHistory(req.user.id, limit);
-      
-      res.json({
-        success: true,
-        data: history
-      });
-    } catch (error) {
-      logger.error('Error in getBillingHistory:', error);
       next(error);
     }
   }

@@ -78,6 +78,41 @@ export const authApi = {
     return response;
   },
 
+  // Google OAuth
+  googleLogin: (): void => {
+    window.location.href = `http://localhost:3001/auth/google`;
+  },
+
+  // Handle OAuth callback tokens from URL
+  handleOAuthCallback: (): { token?: string; refreshToken?: string } => {
+    if (typeof window === 'undefined') return {};
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const refreshToken = urlParams.get('refresh');
+    
+    if (token) {
+      try {
+        localStorage.setItem('token', token);
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken);
+        }
+        
+        // Clean up URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('token');
+        url.searchParams.delete('refresh');
+        window.history.replaceState({}, document.title, url.toString());
+        
+        return { token, refreshToken };
+      } catch (error) {
+        console.error('Error handling OAuth callback:', error);
+      }
+    }
+    
+    return {};
+  },
+
   // Legacy password-based methods
   register: async (data: RegisterData): Promise<ApiResponse<User>> => {
     const response = await api.post<ApiResponse<User>>('/auth/register', data);

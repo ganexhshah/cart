@@ -27,6 +27,7 @@ export interface StaffFormData {
   role: Staff['role'];
   shift: Staff['shift'];
   salary: number;
+  status?: Staff['status'];
 }
 
 export interface AttendanceRecord {

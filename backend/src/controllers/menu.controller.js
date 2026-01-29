@@ -149,6 +149,97 @@ class MenuController {
     }
   }
 
+  // Bulk import menu items
+  async bulkImportMenuItems(req, res, next) {
+    try {
+      const { items, restaurantId } = req.body;
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Items array is required and must not be empty'
+        });
+      }
+
+      if (!restaurantId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Restaurant ID is required'
+        });
+      }
+
+      const result = await menuService.bulkImportMenuItems(req.user.id, restaurantId, items);
+      
+      res.status(201).json({
+        success: true,
+        message: `Bulk import completed: ${result.created} items created, ${result.errors.length} errors`,
+        data: result
+      });
+    } catch (error) {
+      logger.error('Error in bulkImportMenuItems:', error);
+      if (error.message === 'Restaurant not found or access denied') {
+        return res.status(403).json({
+          success: false,
+          message: error.message
+        });
+      }
+      next(error);
+    }
+  }
+
+  // Get sample template
+  async getSampleTemplate(req, res, next) {
+    try {
+      const { format } = req.query;
+      
+      const sampleData = [
+        {
+          name: 'Margherita Pizza',
+          description: 'Classic pizza with tomato sauce, mozzarella, and fresh basil',
+          price: 12.99,
+          category: 'Pizza',
+          preparationTime: 15,
+          calories: 280,
+          ingredients: ['Tomato sauce', 'Mozzarella cheese', 'Fresh basil', 'Olive oil'],
+          allergens: ['Gluten', 'Dairy'],
+          isVegetarian: true,
+          isVegan: false,
+          isGlutenFree: false,
+          imageUrl: 'https://example.com/pizza.jpg'
+        },
+        {
+          name: 'Caesar Salad',
+          description: 'Fresh romaine lettuce with caesar dressing and croutons',
+          price: 8.99,
+          category: 'Salads',
+          preparationTime: 10,
+          calories: 150,
+          ingredients: ['Romaine lettuce', 'Caesar dressing', 'Croutons', 'Parmesan cheese'],
+          allergens: ['Gluten', 'Dairy'],
+          isVegetarian: true,
+          isVegan: false,
+          isGlutenFree: false,
+          imageUrl: ''
+        }
+      ];
+
+      if (format === 'json') {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', 'attachment; filename="menu_items_template.json"');
+        res.json(sampleData);
+      } else {
+        // Return as JSON for frontend to process into Excel
+        res.json({
+          success: true,
+          data: sampleData
+        });
+      }
+    } catch (error) {
+      logger.error('Error in getSampleTemplate:', error);
+      next(error);
+    }
+  }
+
   // Update menu item
   async updateMenuItem(req, res, next) {
     try {

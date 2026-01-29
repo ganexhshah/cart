@@ -11,7 +11,7 @@ router.use(authenticate);
 router.get('/restaurant/:restaurantId', staffController.getStaff);
 router.get('/restaurant/:restaurantId/stats', staffController.getStats);
 router.get('/restaurant/:restaurantId/payroll', staffController.getPayroll);
-router.post('/restaurant/:restaurantId', validateStaff, staffController.addStaff);
+router.post('/restaurant/:restaurantId', staffController.addStaff);
 
 // Individual staff routes
 router.get('/:staffId', staffController.getStaffById);
@@ -25,5 +25,16 @@ router.post('/:staffId/clock', staffController.clockInOut);
 
 // Performance routes
 router.get('/:staffId/performance', staffController.getPerformance);
+
+// Password management
+router.post('/:staffId/change-password', staffController.changePassword);
+
+// Test email (development only)
+if (process.env.NODE_ENV !== 'production') {
+  router.post('/test-email', staffController.testEmail);
+}
+
+// Resend welcome email
+router.post('/:staffId/resend-email', staffController.resendWelcomeEmail);
 
 module.exports = router;

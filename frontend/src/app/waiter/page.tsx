@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +26,69 @@ import {
   MapPin
 } from "lucide-react";
 
+interface WaiterUser {
+  id: string;
+  email: string;
+  fullName: string;
+  phone: string;
+  role: string;
+  avatarUrl?: string;
+  staffId: string;
+  staffNumber: string;
+}
+
+interface Restaurant {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  slug: string;
+}
+
 export default function WaiterDashboard() {
+  const [user, setUser] = useState<WaiterUser | null>(null);
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check authentication
+    const token = localStorage.getItem("waiter_token");
+    const userData = localStorage.getItem("waiter_user");
+    const restaurantData = localStorage.getItem("waiter_restaurant");
+
+    if (!token || !userData || !restaurantData) {
+      router.push("/waiter/login");
+      return;
+    }
+
+    try {
+      setUser(JSON.parse(userData));
+      setRestaurant(JSON.parse(restaurantData));
+    } catch (error) {
+      console.error("Error parsing stored data:", error);
+      router.push("/waiter/login");
+      return;
+    }
+
+    setLoading(false);
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !restaurant) {
+    return null; // Will redirect to login
+  }
+
   // Mock data for waiter dashboard
   const todayStats = {
     tablesServed: 12,

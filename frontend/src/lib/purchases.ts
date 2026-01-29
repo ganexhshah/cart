@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, ApiResponse } from './api';
 
 export interface Supplier {
   id: string;
@@ -101,8 +101,14 @@ export const getSuppliers = async (params?: {
   page?: number;
   limit?: number;
 }) => {
-  const response = await api.get('/purchases/suppliers', { params });
-  return response.data;
+  try {
+    // Use authenticated endpoint
+    const response = await api.get('/purchases/suppliers', { params }) as ApiResponse<Supplier[]>;
+    return response;
+  } catch (error) {
+    console.error('Error fetching suppliers:', error);
+    throw error;
+  }
 };
 
 // Create supplier
@@ -116,8 +122,8 @@ export const createSupplier = async (supplierData: {
   taxNumber?: string;
   paymentTerms: 'cash' | 'credit_15' | 'credit_30' | 'credit_60';
 }) => {
-  const response = await api.post('/purchases/suppliers', supplierData);
-  return response.data;
+  const response = await api.post('/purchases/suppliers', supplierData) as ApiResponse<Supplier>;
+  return response;
 };
 
 // Update supplier
@@ -133,8 +139,8 @@ export const updateSupplier = async (supplierId: string, supplierData: {
   isActive?: boolean;
   rating?: number;
 }) => {
-  const response = await api.put(`/purchases/suppliers/${supplierId}`, supplierData);
-  return response.data;
+  const response = await api.put(`/purchases/suppliers/${supplierId}`, supplierData) as ApiResponse<Supplier>;
+  return response;
 };
 
 // Get all purchase orders
@@ -146,14 +152,20 @@ export const getPurchaseOrders = async (params?: {
   page?: number;
   limit?: number;
 }) => {
-  const response = await api.get('/purchases/orders', { params });
-  return response.data;
+  try {
+    // Use authenticated endpoint
+    const response = await api.get('/purchases/orders', { params }) as ApiResponse<PurchaseOrder[]>;
+    return response;
+  } catch (error) {
+    console.error('Error fetching purchase orders:', error);
+    throw error;
+  }
 };
 
 // Get purchase order by ID
 export const getPurchaseOrderById = async (poId: string) => {
-  const response = await api.get(`/purchases/orders/${poId}`);
-  return response.data;
+  const response = await api.get(`/purchases/orders/${poId}`) as ApiResponse<PurchaseOrder>;
+  return response;
 };
 
 // Create purchase order
@@ -170,14 +182,14 @@ export const createPurchaseOrder = async (orderData: {
   notes?: string;
   termsConditions?: string;
 }) => {
-  const response = await api.post('/purchases/orders', orderData);
-  return response.data;
+  const response = await api.post('/purchases/orders', orderData) as ApiResponse<PurchaseOrder>;
+  return response;
 };
 
 // Update purchase order status
 export const updatePurchaseOrderStatus = async (poId: string, status: string) => {
-  const response = await api.put(`/purchases/orders/${poId}/status`, { status });
-  return response.data;
+  const response = await api.put(`/purchases/orders/${poId}/status`, { status }) as ApiResponse<PurchaseOrder>;
+  return response;
 };
 
 // Receive purchase order items
@@ -187,8 +199,8 @@ export const receivePurchaseOrderItems = async (poId: string, receivedItems: Arr
   qualityStatus: 'approved' | 'rejected';
   qualityNotes?: string;
 }>) => {
-  const response = await api.post(`/purchases/orders/${poId}/receive`, { receivedItems });
-  return response.data;
+  const response = await api.post(`/purchases/orders/${poId}/receive`, { receivedItems }) as ApiResponse<any>;
+  return response;
 };
 
 // Get purchase history
@@ -200,8 +212,14 @@ export const getPurchaseHistory = async (params?: {
   page?: number;
   limit?: number;
 }) => {
-  const response = await api.get('/purchases/history', { params });
-  return response.data;
+  try {
+    // Use authenticated endpoint
+    const response = await api.get('/purchases/history', { params }) as ApiResponse<PurchaseHistory[]>;
+    return response;
+  } catch (error) {
+    console.error('Error fetching purchase history:', error);
+    throw error;
+  }
 };
 
 // Get cost tracking
@@ -209,12 +227,18 @@ export const getCostTracking = async (params?: {
   materialId?: string;
   days?: number;
 }) => {
-  const response = await api.get('/purchases/cost-tracking', { params });
-  return response.data;
+  try {
+    // Use authenticated endpoint
+    const response = await api.get('/purchases/cost-tracking', { params }) as ApiResponse<CostTracking[]>;
+    return response;
+  } catch (error) {
+    console.error('Error fetching cost tracking:', error);
+    throw error;
+  }
 };
 
 // Update cost tracking
 export const updateCostTracking = async (date?: string) => {
-  const response = await api.post('/purchases/cost-tracking/update', { date });
-  return response.data;
+  const response = await api.post('/purchases/cost-tracking/update', { date }) as ApiResponse<any>;
+  return response;
 };

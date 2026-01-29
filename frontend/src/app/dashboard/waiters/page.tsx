@@ -99,7 +99,7 @@ export default function WaitersPage() {
         shift: "morning",
         salary: 2500
       });
-      toast.success("Waiter added successfully");
+      toast.success("Waiter added successfully! Login credentials have been sent to their email.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to add waiter");
     }
@@ -131,6 +131,28 @@ export default function WaitersPage() {
       toast.success("Clocked in successfully");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to clock in");
+    }
+  };
+
+  const handleResendEmail = async (waiterId: string) => {
+    try {
+      const response = await fetch(`/api/staff/${waiterId}/resend-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend email');
+      }
+
+      toast.success("Welcome email sent successfully with new login credentials!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send email");
     }
   };
 
@@ -431,6 +453,12 @@ export default function WaitersPage() {
                             <DropdownMenuItem>
                               <TrendingUp className="w-4 h-4 mr-2" />
                               View Performance
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleResendEmail(waiter.id)}
+                            >
+                              <Mail className="w-4 h-4 mr-2" />
+                              Resend Welcome Email
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 

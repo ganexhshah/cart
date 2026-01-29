@@ -3,7 +3,10 @@ const router = express.Router();
 const tableController = require('../controllers/table.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 
-// All routes require authentication
+// Public routes (no authentication required)
+router.get('/public/:id', tableController.getTable);
+
+// All other routes require authentication
 router.use(authenticate);
 
 // Table management

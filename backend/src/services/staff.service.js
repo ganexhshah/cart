@@ -115,8 +115,11 @@ class StaffService {
       role,
       shift,
       salary,
-      password = 'staff123' // Default password
+      password = null // Allow custom password or generate one
     } = staffData;
+
+    // Generate a random password if not provided
+    const generatedPassword = password || this.generateRandomPassword();
 
     // Start transaction
     const client = await db.getClient();
@@ -135,7 +138,7 @@ class StaffService {
       if (userResult.rows.length === 0) {
         // Create new user
         const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
+        const passwordHash = await bcrypt.hash(generatedPassword, salt);
         
         userResult = await client.query(`
           INSERT INTO users (email, password_hash, full_name, phone, role)
@@ -167,6 +170,49 @@ class StaffService {
       
       await client.query('COMMIT');
       
+      console.log('Staff created successfully, attempting to send welcome email...');
+      
+      // Get restaurant details for email
+      const restaurantResult = await db.query(
+        'SELECT name, address, phone FROM restaurants WHERE id = $1',
+        [restaurantId]
+      );
+      
+      if (restaurantResult.rows.length === 0) {
+        console.error('Restaurant not found for email sending, restaurantId:', restaurantId);
+        // Continue without sending email
+      } else {
+        const restaurant = restaurantResult.rows[0];
+        console.log('Restaurant found for email:', restaurant.name);
+        
+        // Send welcome email with login credentials
+        const emailService = require('./email.service');
+        try {
+          console.log('Sending welcome email with data:', {
+            email,
+            name,
+            staffNumber,
+            role,
+            restaurant: restaurant.name
+          });
+          
+          await emailService.sendStaffWelcomeEmail({
+            email,
+            name,
+            password: generatedPassword,
+            staffNumber,
+            role,
+            restaurant: restaurant.name,
+            restaurantAddress: restaurant.address,
+            restaurantPhone: restaurant.phone
+          });
+          console.log(`Welcome email sent successfully to ${email}`);
+        } catch (emailError) {
+          console.error('Failed to send welcome email:', emailError);
+          // Don't fail the staff creation if email fails
+        }
+      }
+      
       // Get complete staff data
       const completeStaff = await this.getStaffById(staffResult.rows[0].id);
       return completeStaff;
@@ -176,6 +222,95 @@ class StaffService {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  // Generate random password
+  generateRandomPassword() {
+    const length = 8;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
+  }
+
+  // Test email functionality
+  async testEmail(email) {
+    console.log('Testing email functionality...');
+    const emailService = require('./email.service');
+    
+    try {
+      await emailService.sendStaffWelcomeEmail({
+        email,
+        name: 'Test User',
+        password: 'TestPass123',
+        staffNumber: 'S001',
+        role: 'waiter',
+        restaurant: 'Test Restaurant',
+        restaurantAddress: '123 Test Street',
+        restaurantPhone: '+1234567890'
+      });
+      console.log('Test email sent successfully');
+      return { success: true, message: 'Test email sent successfully' };
+    } catch (error) {
+      console.error('Test email failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Resend welcome email for existing staff
+  async resendWelcomeEmail(staffId) {
+    console.log('Resending welcome email for staff:', staffId);
+    
+    try {
+      // Get staff details
+      const staff = await this.getStaffById(staffId);
+      
+      // Get restaurant details
+      const restaurantResult = await db.query(
+        'SELECT name, address, phone FROM restaurants WHERE id = $1',
+        [staff.restaurant_id]
+      );
+      
+      if (restaurantResult.rows.length === 0) {
+        throw new Error('Restaurant not found');
+      }
+      
+      const restaurant = restaurantResult.rows[0];
+      
+      // Generate a new temporary password
+      const newPassword = this.generateRandomPassword();
+      
+      // Update the user's password
+      const bcrypt = require('bcryptjs');
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(newPassword, salt);
+      
+      await db.query(
+        'UPDATE users SET password_hash = $1 WHERE id = $2',
+        [passwordHash, staff.user_id]
+      );
+      
+      // Send welcome email
+      const emailService = require('./email.service');
+      await emailService.sendStaffWelcomeEmail({
+        email: staff.email,
+        name: staff.full_name,
+        password: newPassword,
+        staffNumber: staff.staff_number,
+        role: staff.role,
+        restaurant: restaurant.name,
+        restaurantAddress: restaurant.address,
+        restaurantPhone: restaurant.phone
+      });
+      
+      console.log(`Welcome email resent successfully to ${staff.email}`);
+      return { success: true, message: 'Welcome email sent successfully' };
+    } catch (error) {
+      console.error('Failed to resend welcome email:', error);
+      throw error;
     }
   }
 
@@ -430,6 +565,45 @@ class StaffService {
     `, [restaurantId]);
     
     return result.rows[0];
+  }
+
+  // Change staff password
+  async changePassword(staffId, currentPassword, newPassword) {
+    // Get staff and user information
+    const staffResult = await db.query(`
+      SELECT s.*, u.password_hash, u.email
+      FROM staff s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE s.id = $1
+    `, [staffId]);
+    
+    if (staffResult.rows.length === 0) {
+      const error = new Error('Staff member not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    
+    const staff = staffResult.rows[0];
+    
+    // Verify current password
+    const isValid = await bcrypt.compare(currentPassword, staff.password_hash);
+    if (!isValid) {
+      const error = new Error('Current password is incorrect');
+      error.statusCode = 401;
+      throw error;
+    }
+    
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const newPasswordHash = await bcrypt.hash(newPassword, salt);
+    
+    // Update password
+    await db.query(
+      'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [newPasswordHash, staff.user_id]
+    );
+    
+    return { success: true, message: 'Password updated successfully' };
   }
 
   // Get payroll data

@@ -7,7 +7,7 @@ export const useSuppliers = (params?: {
   page?: number;
   limit?: number;
 }) => {
-  const [suppliers, setSuppliers] = useState([]);
+  const [suppliers, setSuppliers] = useState<purchasesApi.Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,7 +80,7 @@ export const usePurchaseOrders = (params?: {
   page?: number;
   limit?: number;
 }) => {
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<purchasesApi.PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -169,7 +169,7 @@ export const usePurchaseHistory = (params?: {
   page?: number;
   limit?: number;
 }) => {
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState<purchasesApi.PurchaseHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -206,7 +206,7 @@ export const useCostTracking = (params?: {
   materialId?: string;
   days?: number;
 }) => {
-  const [costData, setCostData] = useState([]);
+  const [costData, setCostData] = useState<purchasesApi.CostTracking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

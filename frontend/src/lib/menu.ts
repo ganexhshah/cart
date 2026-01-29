@@ -135,6 +135,11 @@ export const menuApi = {
     return api.post<{ success: boolean; data: MenuItem; message: string }>('/menu/items', data);
   },
 
+  // Bulk import menu items
+  async bulkImportMenuItems(data: { items: CreateMenuItemData[]; restaurantId: string }) {
+    return api.post<{ success: boolean; data: { created: number; errors: any[] }; message: string }>('/menu/bulk-import', data);
+  },
+
   // Update menu item
   async updateMenuItem(id: string, data: Partial<CreateMenuItemData>) {
     return api.put<{ success: boolean; data: MenuItem; message: string }>(`/menu/items/${id}`, data);

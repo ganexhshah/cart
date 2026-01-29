@@ -40,7 +40,25 @@ class StaffController {
       const { restaurantId } = req.params;
       const staffData = { ...req.body, restaurantId };
       
+      console.log('Adding staff with data:', JSON.stringify(staffData, null, 2));
+      console.log('Restaurant ID:', restaurantId);
+      
+      // Validate required fields
+      if (!staffData.name || !staffData.email || !staffData.role) {
+        console.log('Missing required fields:', {
+          name: !!staffData.name,
+          email: !!staffData.email,
+          role: !!staffData.role
+        });
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: name, email, and role are required'
+        });
+      }
+      
       const staff = await staffService.addStaff(staffData);
+      
+      console.log('Staff added successfully:', staff.id);
       
       res.status(201).json({
         success: true,
@@ -48,7 +66,11 @@ class StaffController {
         message: 'Staff member added successfully'
       });
     } catch (error) {
-      next(error);
+      console.error('Error adding staff:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to add staff member'
+      });
     }
   }
 
@@ -188,6 +210,84 @@ class StaffController {
       res.json({
         success: true,
         data: payroll
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Change staff password
+  async changePassword(req, res, next) {
+    try {
+      const { staffId } = req.params;
+      const { currentPassword, newPassword } = req.body;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({
+          success: false,
+          error: 'Current password and new password are required'
+        });
+      }
+      
+      if (newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          error: 'New password must be at least 6 characters long'
+        });
+      }
+      
+      const result = await staffService.changePassword(staffId, currentPassword, newPassword);
+      
+      res.json({
+        success: true,
+        data: result,
+        message: 'Password changed successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Test email functionality
+  async testEmail(req, res, next) {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email is required'
+        });
+      }
+
+      const result = await staffService.testEmail(email);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          message: result.message
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.error
+        });
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Resend welcome email
+  async resendWelcomeEmail(req, res, next) {
+    try {
+      const { staffId } = req.params;
+      
+      await staffService.resendWelcomeEmail(staffId);
+      
+      res.json({
+        success: true,
+        message: 'Welcome email sent successfully with new login credentials'
       });
     } catch (error) {
       next(error);

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AppSidebar } from "./sidebar";
 import { Navbar } from "./navbar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { Toaster } from "sonner";
 import { authApi } from "@/lib/auth";
 
 interface DashboardLayoutProps {
@@ -41,6 +42,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
           </div>
         </main>
       </SidebarInset>
+      <Toaster position="top-right" />
     </SidebarProvider>
   );
 }

@@ -97,8 +97,13 @@ export const tableApi = {
     return api.get<{ success: boolean; data: RestaurantTable[] }>(url);
   },
 
-  // Get single table
+  // Get single table (public access)
   async getTable(id: string) {
+    return api.get<{ success: boolean; data: RestaurantTable }>(`/tables/public/${id}`);
+  },
+
+  // Get single table (authenticated access)
+  async getTableAuth(id: string) {
     return api.get<{ success: boolean; data: RestaurantTable }>(`/tables/${id}`);
   },
 

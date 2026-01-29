@@ -38,6 +38,66 @@ class OrderController {
       next(error);
     }
   }
+
+  // Guest order creation (no authentication required)
+  async createGuestOrder(req, res, next) {
+    try {
+      const orderData = {
+        ...req.body,
+        customerId: null, // Guest order
+        customerInfo: req.body.customerInfo // Optional customer info for guest orders
+      };
+      
+      const order = await orderService.createOrder(orderData);
+      
+      // Emit socket event for real-time updates
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`restaurant:${order.restaurant_id}`).emit('order:new', order);
+        io.to(`kitchen:${order.restaurant_id}`).emit('kot:new', order);
+      }
+      
+      // Send order confirmation email if guest provided email
+      if (req.body.customerInfo?.email) {
+        emailService.sendOrderConfirmation(order, {
+          email: req.body.customerInfo.email,
+          full_name: req.body.customerInfo.name || 'Guest'
+        }).catch(err =>
+          console.error('Failed to send guest order confirmation:', err)
+        );
+      }
+      
+      res.status(201).json({
+        success: true,
+        data: order,
+        message: 'Guest order created successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Get guest order (no authentication required)
+  async getGuestOrder(req, res, next) {
+    try {
+      const { id } = req.params;
+      const order = await orderService.getOrderById(id);
+      
+      if (!order) {
+        return res.status(404).json({
+          success: false,
+          error: 'Order not found'
+        });
+      }
+      
+      res.json({
+        success: true,
+        data: order
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
   
   async getOrders(req, res, next) {
     try {

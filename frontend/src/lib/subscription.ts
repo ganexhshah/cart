@@ -27,19 +27,6 @@ export interface UserSubscription {
   cancelled_at: string | null;
 }
 
-export interface BillingRecord {
-  id: number;
-  invoice_number: string;
-  description: string;
-  amount: number;
-  currency: string;
-  status: string;
-  payment_method: string | null;
-  payment_date: string | null;
-  due_date: string | null;
-  created_at: string;
-}
-
 export interface PaymentMethod {
   id: number;
   type: string;
@@ -68,11 +55,6 @@ export const subscriptionApi = {
   // Cancel subscription
   async cancelSubscription(immediate: boolean = false) {
     return api.post<{ success: boolean; data: UserSubscription; message: string }>('/subscriptions/cancel', { immediate });
-  },
-
-  // Get billing history
-  async getBillingHistory(limit: number = 20) {
-    return api.get<{ success: boolean; data: BillingRecord[] }>(`/subscriptions/billing-history?limit=${limit}`);
   },
 
   // Get payment methods

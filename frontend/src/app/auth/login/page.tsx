@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/auth";
 
@@ -25,6 +25,60 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Handle OAuth callback on component mount
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      const { token } = authApi.handleOAuthCallback();
+      
+      if (token) {
+        try {
+          // Get user info to determine redirect
+          const userResponse = await authApi.getMe();
+          if (userResponse.success && userResponse.data) {
+            const user = userResponse.data;
+            
+            if (user.role === 'owner') {
+              router.push('/dashboard');
+            } else if (user.role === 'waiter') {
+              router.push('/waiter');
+            } else {
+              router.push('/menu');
+            }
+          }
+        } catch (err) {
+          console.error('Error getting user info after OAuth:', err);
+          setError('Login successful but failed to get user information');
+        }
+      }
+      
+      // Check for OAuth errors in URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const oauthError = urlParams.get('error');
+      if (oauthError) {
+        switch (oauthError) {
+          case 'oauth_error':
+            setError('Google authentication failed. Please try again.');
+            break;
+          case 'oauth_failed':
+            setError('Google login was cancelled or failed.');
+            break;
+          case 'token_error':
+            setError('Failed to generate authentication token.');
+            break;
+          default:
+            setError('Authentication error occurred.');
+        }
+        
+        // Clean up URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('error');
+        window.history.replaceState({}, document.title, url.toString());
+      }
+    };
+
+    handleOAuthCallback();
+  }, [router]);
 
   // OTP Login Flow
   const handleSendOTP = async (e: React.FormEvent) => {
@@ -293,6 +347,7 @@ export default function LoginPage() {
             variant="outline" 
             className="w-full flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800"
             type="button"
+            onClick={() => authApi.googleLogin()}
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path

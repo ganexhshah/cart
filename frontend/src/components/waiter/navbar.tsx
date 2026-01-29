@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +34,6 @@ import {
   MapPin,
   Receipt
 } from "lucide-react";
-import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -40,10 +41,63 @@ interface WaiterNavbarProps {
   title?: string;
 }
 
+interface WaiterUser {
+  id: string;
+  email: string;
+  fullName: string;
+  phone: string;
+  role: string;
+  avatarUrl?: string;
+  staffId: string;
+  staffNumber: string;
+}
+
+interface Restaurant {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  slug: string;
+}
+
 export function WaiterNavbar({ title }: WaiterNavbarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<WaiterUser | null>(null);
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    // Get user and restaurant data from localStorage
+    const userData = localStorage.getItem("waiter_user");
+    const restaurantData = localStorage.getItem("waiter_restaurant");
+
+    if (userData && restaurantData) {
+      try {
+        setUser(JSON.parse(userData));
+        setRestaurant(JSON.parse(restaurantData));
+      } catch (error) {
+        console.error("Error parsing stored data:", error);
+      }
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("waiter_token");
+    localStorage.removeItem("waiter_user");
+    localStorage.removeItem("waiter_restaurant");
+    router.push("/waiter/login");
+  };
+
+  const getUserInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map(n => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   // Generate breadcrumbs based on current path
   const generateBreadcrumbs = () => {
@@ -374,19 +428,30 @@ export function WaiterNavbar({ title }: WaiterNavbarProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/api/placeholder/32/32" alt="Profile" />
-                    <AvatarFallback>AJ</AvatarFallback>
+                    <AvatarImage src={user?.avatarUrl} alt="Profile" />
+                    <AvatarFallback>
+                      {user ? getUserInitials(user.fullName) : "W"}
+                    </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Alex Johnson</p>
-                    <p className="text-xs text-muted-foreground">Senior Waiter</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      alex@restaurant.com
+                    <p className="text-sm font-medium leading-none">
+                      {user?.fullName || "Waiter"}
                     </p>
+                    <p className="text-xs text-muted-foreground">
+                      {user?.role || "Staff"} • {user?.staffNumber || "N/A"}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user?.email || ""}
+                    </p>
+                    {restaurant && (
+                      <p className="text-xs leading-none text-muted-foreground font-medium">
+                        {restaurant.name}
+                      </p>
+                    )}
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -415,7 +480,10 @@ export function WaiterNavbar({ title }: WaiterNavbarProps) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-600 cursor-pointer">
+                <DropdownMenuItem 
+                  className="text-red-600 cursor-pointer"
+                  onClick={handleLogout}
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>End Shift & Log out</span>
                 </DropdownMenuItem>

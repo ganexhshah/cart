@@ -1,4 +1,5 @@
 const restaurantService = require('../services/restaurant.service');
+const db = require('../config/database');
 
 class RestaurantController {
   // Get restaurant by slug (public route)
@@ -31,6 +32,12 @@ class RestaurantController {
       };
       
       const restaurant = await restaurantService.createRestaurant(restaurantData);
+      
+      // Update user's primary_restaurant_id
+      await db.query(
+        'UPDATE users SET primary_restaurant_id = $1 WHERE id = $2',
+        [restaurant.id, req.user.userId]
+      );
       
       res.status(201).json({
         success: true,

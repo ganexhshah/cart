@@ -4,6 +4,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
+const session = require('express-session');
+const passport = require('./config/passport');
 const http = require('http');
 const authRoutes = require('./routes/auth.routes');
 const restaurantRoutes = require('./routes/restaurant.routes');
@@ -20,7 +22,6 @@ const kotRoutes = require('./routes/kot.routes');
 const posRoutes = require('./routes/pos.routes');
 const reviewRoutes = require('./routes/review.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
-const billingRoutes = require('./routes/billing.routes');
 const inventoryRoutes = require('./routes/inventory.routes');
 const purchaseRoutes = require('./routes/purchase.routes');
 
@@ -46,6 +47,21 @@ app.use(compression());
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Session middleware for passport
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fallback-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
 // Rate limiting - disabled for development
 // app.use('/api/', generalLimiter);
 // Health check
@@ -58,6 +74,18 @@ app.get('/health', (req, res) => {
 });
 // API Routes
 app.use('/api/auth', authRoutes);
+
+// Direct Google OAuth routes (not under /api prefix to match Google Cloud Console config)
+app.get('/auth/google', (req, res, next) => {
+  const authController = require('./controllers/auth.controller');
+  authController.googleAuth(req, res, next);
+});
+
+app.get('/auth/google/callback', (req, res, next) => {
+  const authController = require('./controllers/auth.controller');
+  authController.googleCallback(req, res, next);
+});
+
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/upload', uploadRoutes);
@@ -69,10 +97,15 @@ app.use('/api/tables', tableRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/kot', kotRoutes);
+
+// Test routes (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  const testRoutes = require('./routes/test.routes');
+  app.use('/api/test', testRoutes);
+}
 app.use('/api/pos', posRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/analytics', analyticsRoutes);
-app.use('/api/billing', billingRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/purchases', purchaseRoutes);
 

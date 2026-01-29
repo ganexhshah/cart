@@ -1,6 +1,8 @@
 const authService = require('../services/auth.service');
 const emailService = require('../services/email.service');
 const db = require('../config/database');
+const passport = require('../config/passport');
+const bcrypt = require('bcrypt');
 
 class AuthController {
   // Send OTP
@@ -101,6 +103,132 @@ class AuthController {
         success: true,
         data: result,
         message: 'Login successful'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Waiter login with staff authentication
+  async waiterLogin(req, res, next) {
+    try {
+      const { email, password, staffId } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email and password are required'
+        });
+      }
+
+      // Get user
+      const userResult = await db.query(
+        'SELECT * FROM users WHERE email = $1',
+        [email]
+      );
+      
+      if (userResult.rows.length === 0) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid credentials'
+        });
+      }
+      
+      const user = userResult.rows[0];
+
+      // Verify password
+      const isValid = await bcrypt.compare(password, user.password_hash);
+      if (!isValid) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid credentials'
+        });
+      }
+
+      // Get staff information
+      let staffQuery = `
+        SELECT s.*, r.name as restaurant_name, r.address as restaurant_address,
+               r.phone as restaurant_phone, r.slug as restaurant_slug
+        FROM staff s
+        LEFT JOIN restaurants r ON s.restaurant_id = r.id
+        WHERE s.user_id = $1 AND s.status = 'active'
+      `;
+      let staffParams = [user.id];
+
+      // If staffId is provided, filter by it
+      if (staffId) {
+        staffQuery += ' AND s.id = $2';
+        staffParams.push(staffId);
+      }
+
+      const staffResult = await db.query(staffQuery, staffParams);
+
+      if (staffResult.rows.length === 0) {
+        return res.status(401).json({
+          success: false,
+          error: 'No active staff record found'
+        });
+      }
+
+      // If multiple staff records and no staffId provided, return error
+      if (staffResult.rows.length > 1 && !staffId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Multiple restaurants found. Please provide staff ID.',
+          data: {
+            staffOptions: staffResult.rows.map(staff => ({
+              staffId: staff.id,
+              restaurantName: staff.restaurant_name,
+              role: staff.role
+            }))
+          }
+        });
+      }
+
+      const staff = staffResult.rows[0];
+
+      // Generate tokens with staff role and restaurant
+      const tokenPayload = {
+        id: user.id,
+        email: user.email,
+        role: staff.role,
+        restaurantId: staff.restaurant_id,
+        staffId: staff.id
+      };
+
+      const accessToken = authService.generateAccessToken(tokenPayload);
+      const refreshToken = authService.generateRefreshToken(tokenPayload);
+
+      // Update last login
+      await db.query(
+        'UPDATE users SET last_login = NOW() WHERE id = $1',
+        [user.id]
+      );
+
+      res.json({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            fullName: user.full_name,
+            phone: user.phone,
+            role: staff.role,
+            avatarUrl: user.avatar_url,
+            staffId: staff.id,
+            staffNumber: staff.staff_number
+          },
+          restaurant: {
+            id: staff.restaurant_id,
+            name: staff.restaurant_name,
+            address: staff.restaurant_address,
+            phone: staff.restaurant_phone,
+            slug: staff.restaurant_slug
+          },
+          accessToken,
+          refreshToken
+        },
+        message: 'Waiter login successful'
       });
     } catch (error) {
       next(error);
@@ -212,6 +340,56 @@ class AuthController {
     } catch (error) {
       next(error);
     }
+  }
+
+  // Google OAuth routes
+  async googleAuth(req, res, next) {
+    passport.authenticate('google', {
+      scope: ['profile', 'email']
+    })(req, res, next);
+  }
+
+  async googleCallback(req, res, next) {
+    passport.authenticate('google', { session: false }, async (err, user) => {
+      if (err) {
+        console.error('Google OAuth error:', err);
+        return res.redirect(`${process.env.FRONTEND_URL}/auth/login?error=oauth_error`);
+      }
+
+      if (!user) {
+        return res.redirect(`${process.env.FRONTEND_URL}/auth/login?error=oauth_failed`);
+      }
+
+      try {
+        // Generate JWT tokens
+        const tokenPayload = {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          restaurantId: user.primary_restaurant_id
+        };
+
+        const accessToken = authService.generateAccessToken(tokenPayload);
+        const refreshToken = authService.generateRefreshToken(tokenPayload);
+
+        // Check if user needs onboarding (new user without restaurant)
+        const needsOnboarding = user.role === 'customer' && !user.primary_restaurant_id;
+
+        // Redirect to frontend with tokens
+        const redirectUrl = needsOnboarding 
+          ? `${process.env.FRONTEND_URL}/onboarding?token=${accessToken}&refresh=${refreshToken}`
+          : user.role === 'owner' 
+            ? `${process.env.FRONTEND_URL}/dashboard?token=${accessToken}&refresh=${refreshToken}`
+            : user.role === 'waiter'
+              ? `${process.env.FRONTEND_URL}/waiter?token=${accessToken}&refresh=${refreshToken}`
+              : `${process.env.FRONTEND_URL}/menu?token=${accessToken}&refresh=${refreshToken}`;
+
+        res.redirect(redirectUrl);
+      } catch (error) {
+        console.error('Token generation error:', error);
+        res.redirect(`${process.env.FRONTEND_URL}/auth/login?error=token_error`);
+      }
+    })(req, res, next);
   }
 }
 

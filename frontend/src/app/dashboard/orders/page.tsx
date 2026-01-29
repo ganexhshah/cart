@@ -40,6 +40,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useOrders } from "@/hooks/useOrders";
 import { orderApi, Order } from "@/lib/orders";
+import { OrderAnalyticsChart } from "@/components/charts/order-analytics-chart";
 
 export default function OrdersPage() {
   const { user } = useAuth();
@@ -256,190 +257,280 @@ export default function OrdersPage() {
         </Alert>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-6">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
+      {/* Ultra Compact Stats Cards - Single Row */}
+      <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 mb-4">
+        <Card className="hover:shadow-sm transition-shadow border-l-2 border-l-slate-500">
+          <CardContent className="p-1.5">
+            <div className="flex items-center gap-1">
+              <div className="h-5 w-5 bg-slate-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Package className="h-2.5 w-2.5 text-slate-600" />
+              </div>
+              <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground">Total</p>
-                <p className="text-xl font-bold">{orderStats.total}</p>
+                <p className="text-sm font-bold text-slate-900">{orderStats.total}</p>
               </div>
-              <Package className="h-6 w-6 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
         
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
+        <Card className="hover:shadow-sm transition-shadow border-l-2 border-l-blue-500">
+          <CardContent className="p-1.5">
+            <div className="flex items-center gap-1">
+              <div className="h-5 w-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Clock className="h-2.5 w-2.5 text-blue-600" />
+              </div>
+              <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground">Pending</p>
-                <p className="text-xl font-bold text-blue-600">{orderStats.pending}</p>
+                <p className="text-sm font-bold text-blue-900">{orderStats.pending}</p>
               </div>
-              <Clock className="h-6 w-6 text-blue-600" />
             </div>
           </CardContent>
         </Card>
         
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Preparing</p>
-                <p className="text-xl font-bold text-yellow-600">{orderStats.preparing}</p>
+        <Card className="hover:shadow-sm transition-shadow border-l-2 border-l-cyan-500">
+          <CardContent className="p-1.5">
+            <div className="flex items-center gap-1">
+              <div className="h-5 w-5 bg-cyan-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="h-2.5 w-2.5 text-cyan-600" />
               </div>
-              <Package className="h-6 w-6 text-yellow-600" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground">Confirmed</p>
-                <p className="text-xl font-bold text-cyan-600">{orderStats.confirmed}</p>
+                <p className="text-sm font-bold text-cyan-900">{orderStats.confirmed}</p>
               </div>
-              <CheckCircle className="h-6 w-6 text-cyan-600" />
             </div>
           </CardContent>
         </Card>
         
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
+        <Card className="hover:shadow-sm transition-shadow border-l-2 border-l-yellow-500">
+          <CardContent className="p-1.5">
+            <div className="flex items-center gap-1">
+              <div className="h-5 w-5 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Package className="h-2.5 w-2.5 text-yellow-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">Preparing</p>
+                <p className="text-sm font-bold text-yellow-900">{orderStats.preparing}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="hover:shadow-sm transition-shadow border-l-2 border-l-purple-500">
+          <CardContent className="p-1.5">
+            <div className="flex items-center gap-1">
+              <div className="h-5 w-5 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="h-2.5 w-2.5 text-purple-600" />
+              </div>
+              <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground">Ready</p>
-                <p className="text-xl font-bold text-purple-600">{orderStats.ready}</p>
+                <p className="text-sm font-bold text-purple-900">{orderStats.ready}</p>
               </div>
-              <CheckCircle className="h-6 w-6 text-purple-600" />
             </div>
           </CardContent>
         </Card>
         
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
+        <Card className="hover:shadow-sm transition-shadow border-l-2 border-l-indigo-500">
+          <CardContent className="p-1.5">
+            <div className="flex items-center gap-1">
+              <div className="h-5 w-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Truck className="h-2.5 w-2.5 text-indigo-600" />
+              </div>
+              <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground">Served</p>
-                <p className="text-xl font-bold text-indigo-600">{orderStats.served}</p>
+                <p className="text-sm font-bold text-indigo-900">{orderStats.served}</p>
               </div>
-              <Truck className="h-6 w-6 text-indigo-600" />
             </div>
           </CardContent>
         </Card>
         
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
+        <Card className="hover:shadow-sm transition-shadow border-l-2 border-l-green-500">
+          <CardContent className="p-1.5">
+            <div className="flex items-center gap-1">
+              <div className="h-5 w-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="h-2.5 w-2.5 text-green-600" />
+              </div>
+              <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground">Completed</p>
-                <p className="text-xl font-bold text-green-600">{orderStats.completed}</p>
+                <p className="text-sm font-bold text-green-900">{orderStats.completed}</p>
               </div>
-              <CheckCircle className="h-6 w-6 text-green-600" />
             </div>
           </CardContent>
         </Card>
         
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Cancelled</p>
-                <p className="text-xl font-bold text-red-600">{orderStats.cancelled}</p>
+        <Card className="hover:shadow-sm transition-shadow border-l-2 border-l-red-500">
+          <CardContent className="p-1.5">
+            <div className="flex items-center gap-1">
+              <div className="h-5 w-5 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <XCircle className="h-2.5 w-2.5 text-red-600" />
               </div>
-              <XCircle className="h-6 w-6 text-red-600" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">Cancelled</p>
+                <p className="text-sm font-bold text-red-900">{orderStats.cancelled}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowAnalytics(true)}>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Revenue</p>
-                <p className="text-xl font-bold text-emerald-600">₹{Number(orderStats.totalRevenue || 0).toFixed(0)}</p>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-all duration-200 border-l-2 border-l-emerald-500 hover:scale-105 bg-gradient-to-br from-emerald-50 to-green-50" 
+          onClick={() => setShowAnalytics(true)}
+        >
+          <CardContent className="p-1.5">
+            <div className="flex items-center gap-1">
+              <div className="h-5 w-5 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="h-2.5 w-2.5 text-emerald-600" />
               </div>
-              <TrendingUp className="h-6 w-6 text-emerald-600" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">Revenue</p>
+                <p className="text-sm font-bold text-emerald-900">₹{Number(orderStats.totalRevenue || 0).toLocaleString()}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters and Actions */}
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input
-                placeholder="Search orders, customers, restaurants..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+      {/* Enhanced Filters and Actions */}
+      <Card className="mb-6">
+        <CardContent className="p-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search orders, customers, phone numbers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 h-10"
+                  />
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={refetch} className="h-10">
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh
+                  </Button>
+                  <Button variant="outline" className="h-10">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowAnalytics(true)} className="h-10">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Analytics
+                  </Button>
+                </div>
+              </div>
             </div>
             
-            <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full sm:w-auto">
-              <TabsList className="grid grid-cols-4 sm:grid-cols-7 w-full sm:w-auto">
-                <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
-                <TabsTrigger value="pending" className="text-xs">Pending</TabsTrigger>
-                <TabsTrigger value="confirmed" className="text-xs">Confirmed</TabsTrigger>
-                <TabsTrigger value="preparing" className="text-xs">Preparing</TabsTrigger>
-                <TabsTrigger value="ready" className="text-xs">Ready</TabsTrigger>
-                <TabsTrigger value="served" className="text-xs">Served</TabsTrigger>
-                <TabsTrigger value="completed" className="text-xs">Completed</TabsTrigger>
-                <TabsTrigger value="cancelled" className="text-xs">Cancelled</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <Label className="text-sm font-medium mb-2 block">Filter by Status</Label>
+                <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full">
+                  <TabsList className="grid grid-cols-4 lg:grid-cols-8 w-full h-auto p-1">
+                    <TabsTrigger value="all" className="text-xs py-2">All</TabsTrigger>
+                    <TabsTrigger value="pending" className="text-xs py-2">Pending</TabsTrigger>
+                    <TabsTrigger value="confirmed" className="text-xs py-2">Confirmed</TabsTrigger>
+                    <TabsTrigger value="preparing" className="text-xs py-2">Preparing</TabsTrigger>
+                    <TabsTrigger value="ready" className="text-xs py-2">Ready</TabsTrigger>
+                    <TabsTrigger value="served" className="text-xs py-2">Served</TabsTrigger>
+                    <TabsTrigger value="completed" className="text-xs py-2">Completed</TabsTrigger>
+                    <TabsTrigger value="cancelled" className="text-xs py-2">Cancelled</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            </div>
           </div>
-          
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="outline" className="flex-1 sm:flex-none" onClick={refetch}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
-            <Button variant="outline" className="flex-1 sm:flex-none">
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-            <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setShowAnalytics(true)}>
-              <FileText className="w-4 h-4 mr-2" />
-              Analytics
-            </Button>
-          </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Bulk Actions */}
+        {/* Enhanced Bulk Actions */}
         {selectedOrders.length > 0 && (
-          <Card className="bg-blue-50 border-blue-200">
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 mb-6">
             <CardContent className="p-4">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <Checkbox 
                     checked={selectedOrders.length === filteredOrders.length}
                     onCheckedChange={handleSelectAll}
                   />
-                  <span className="font-medium">{selectedOrders.length} orders selected</span>
+                  <div>
+                    <span className="font-semibold text-blue-900">{selectedOrders.length} orders selected</span>
+                    <p className="text-xs text-blue-600">Bulk actions available</p>
+                  </div>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
-                  <Button size="sm" variant="outline" onClick={() => setShowStatusDialog(true)}>
+                  <Button size="sm" variant="default" onClick={() => setShowStatusDialog(true)} className="flex-1 sm:flex-none">
                     <Edit className="w-4 h-4 mr-2" />
                     Update Status
                   </Button>
-                  <Button size="sm" variant="outline" onClick={handleDeleteOrders}>
+                  <Button size="sm" variant="destructive" onClick={handleDeleteOrders} className="flex-1 sm:flex-none">
                     <Trash2 className="w-4 h-4 mr-2" />
                     Cancel Orders
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setSelectedOrders([])}>
-                    Clear
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedOrders([])} className="flex-1 sm:flex-none">
+                    Clear Selection
                   </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
+
+      {/* Quick Analytics Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Quick Analytics</h3>
+          <Button variant="ghost" size="sm" onClick={() => setShowAnalytics(true)} className="text-blue-600 hover:text-blue-700">
+            View Detailed Analytics
+            <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2 text-green-700">
+                <TrendingUp className="h-4 w-4" />
+                Revenue Trend (7 Days)
+              </CardTitle>
+              <CardDescription>Daily revenue from completed orders</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[200px]">
+                <OrderAnalyticsChart orders={orders} type="revenue-trend" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2 text-blue-700">
+                <Package className="h-4 w-4" />
+                Order Status Distribution
+              </CardTitle>
+              <CardDescription>Current status breakdown</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[200px]">
+                <OrderAnalyticsChart orders={orders} type="status-distribution" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2 text-purple-700">
+                <Clock className="h-4 w-4" />
+                Hourly Order Pattern
+              </CardTitle>
+              <CardDescription>Orders by time of day</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[200px]">
+                <OrderAnalyticsChart orders={orders} type="hourly-orders" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Orders Table */}
@@ -713,47 +804,49 @@ export default function OrdersPage() {
 
       {/* Analytics Dialog */}
       <Dialog open={showAnalytics} onOpenChange={setShowAnalytics}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Order Analytics</DialogTitle>
-            <DialogDescription>Detailed insights and statistics</DialogDescription>
+            <DialogTitle>Order Analytics Dashboard</DialogTitle>
+            <DialogDescription>Comprehensive insights and statistics for your orders</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
+          
+          {/* Summary Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Total Revenue</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">₹{Number(orderStats.totalRevenue || 0).toFixed(2)}</p>
+                <p className="text-2xl font-bold text-green-600">₹{Number(orderStats.totalRevenue || 0).toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground">From {orderStats.completed} completed orders</p>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Average Order Value</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">₹{Number(orderStats.avgOrderValue || 0).toFixed(2)}</p>
+                <p className="text-2xl font-bold text-blue-600">₹{Number(orderStats.avgOrderValue || 0).toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground">Across all orders</p>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Active Orders</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">
+                <p className="text-2xl font-bold text-orange-600">
                   {orderStats.pending + orderStats.confirmed + orderStats.preparing + orderStats.ready + orderStats.served}
                 </p>
                 <p className="text-xs text-muted-foreground">Currently in progress</p>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Completion Rate</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">
+                <p className="text-2xl font-bold text-purple-600">
                   {orderStats.total > 0 
                     ? ((orderStats.completed / orderStats.total) * 100).toFixed(1) 
                     : 0}%
@@ -762,6 +855,144 @@ export default function OrdersPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Revenue Trend (Last 7 Days)
+                </CardTitle>
+                <CardDescription>Daily revenue from completed orders</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <OrderAnalyticsChart orders={orders} type="revenue-trend" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Order Status Distribution
+                </CardTitle>
+                <CardDescription>Current status breakdown of all orders</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <OrderAnalyticsChart orders={orders} type="status-distribution" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Hourly Order Pattern
+                </CardTitle>
+                <CardDescription>Orders received by hour of the day</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <OrderAnalyticsChart orders={orders} type="hourly-orders" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5" />
+                  Order Types Distribution
+                </CardTitle>
+                <CardDescription>Breakdown by order type (dine-in, takeaway, delivery)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <OrderAnalyticsChart orders={orders} type="order-types" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Additional Insights */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Peak Hours</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {(() => {
+                    const hourlyData = Array.from({ length: 24 }, (_, hour) => ({
+                      hour,
+                      count: orders.filter(order => new Date(order.created_at).getHours() === hour).length
+                    }));
+                    const peakHours = hourlyData
+                      .sort((a, b) => b.count - a.count)
+                      .slice(0, 3)
+                      .filter(h => h.count > 0);
+                    
+                    return peakHours.map((peak, idx) => (
+                      <div key={idx} className="flex justify-between text-sm">
+                        <span>{peak.hour}:00 - {peak.hour + 1}:00</span>
+                        <span className="font-medium">{peak.count} orders</span>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Order Trends</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Today's Orders</span>
+                    <span className="font-medium">
+                      {orders.filter(order => 
+                        new Date(order.created_at).toDateString() === new Date().toDateString()
+                      ).length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>This Week</span>
+                    <span className="font-medium">
+                      {orders.filter(order => {
+                        const orderDate = new Date(order.created_at);
+                        const weekAgo = new Date();
+                        weekAgo.setDate(weekAgo.getDate() - 7);
+                        return orderDate >= weekAgo;
+                      }).length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Avg. Daily Orders</span>
+                    <span className="font-medium">
+                      {orders.length > 0 ? Math.round(orders.length / 7) : 0}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setShowAnalytics(false)}>
+              Close
+            </Button>
+            <Button>
+              <Download className="w-4 h-4 mr-2" />
+              Export Report
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

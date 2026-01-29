@@ -18,9 +18,6 @@ router.post('/subscribe', subscriptionController.updateSubscription);
 // Cancel subscription
 router.post('/cancel', subscriptionController.cancelSubscription);
 
-// Get billing history
-router.get('/billing-history', subscriptionController.getBillingHistory);
-
 // Payment methods
 router.get('/payment-methods', subscriptionController.getPaymentMethods);
 router.post('/payment-methods', subscriptionController.addPaymentMethod);

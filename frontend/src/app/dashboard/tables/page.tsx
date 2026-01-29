@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -25,7 +26,15 @@ import {
   Search,
   Grid3x3,
   List,
-  Loader2
+  Loader2,
+  Copy,
+  Check,
+  FileSpreadsheet,
+  AlertCircle,
+  Store,
+  Phone,
+  Mail,
+  Globe
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import QRCodeLib from 'qrcode';
@@ -54,8 +63,26 @@ export default function TablesPage() {
     private_tables: 0
   });
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+  const hiddenCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [qrData, setQrData] = useState<any>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  // Bulk add state
+  const [showBulkAddDialog, setShowBulkAddDialog] = useState(false);
+  const [isBulkAdding, setIsBulkAdding] = useState(false);
+  const [bulkAddData, setBulkAddData] = useState({
+    prefix: "",
+    startNumber: 1,
+    endNumber: 10,
+    capacity: 4,
+    location: "",
+    tableType: "indoor" as 'indoor' | 'outdoor' | 'private',
+    status: "available" as RestaurantTable['status'],
+    restaurantId: ""
+  });
+  const [bulkAddResults, setBulkAddResults] = useState<{ created: number; errors: any[] } | null>(null);
 
   // Form state for adding/editing tables
   const [formData, setFormData] = useState({
@@ -84,6 +111,7 @@ export default function TablesPage() {
         // Set default restaurant for new tables
         if (restaurantsResponse.data.length > 0) {
           setFormData(prev => ({ ...prev, restaurantId: restaurantsResponse.data[0].id }));
+          setBulkAddData(prev => ({ ...prev, restaurantId: restaurantsResponse.data[0].id }));
         }
       }
 
@@ -165,20 +193,15 @@ export default function TablesPage() {
       }
 
       const qrData = qrResponse.data;
-      
-      // Generate QR code as data URL
-      const qrCodeDataURL = await QRCodeLib.toDataURL(qrData.url, {
-        width: 256,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#ffffff'
-        }
-      });
-
-      setQrCodeUrl(qrCodeDataURL);
+      setQrData(qrData);
       setSelectedTable(table);
       setShowQRDialog(true);
+      
+      // Generate QR code after dialog is shown with longer timeout to ensure DOM is ready
+      setTimeout(() => {
+        generateQRCode(table);
+      }, 300);
+      
     } catch (error) {
       console.error('Error generating QR code:', error);
       alert('Failed to generate QR code. Please try again.');
@@ -187,96 +210,362 @@ export default function TablesPage() {
 
   const generateQRCode = async (table: RestaurantTable) => {
     const canvas = qrCanvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.error('Canvas not found');
+      return;
+    }
 
     try {
       // Get QR code data from backend
       const qrResponse = await tableApi.generateTableQR(table.id);
-      if (!qrResponse.success) return;
+      if (!qrResponse.success) {
+        console.error('Failed to get QR data');
+        return;
+      }
 
       const qrData = qrResponse.data;
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) {
+        console.error('Canvas context not available');
+        return;
+      }
 
-      // Set canvas size
-      canvas.width = 300;
-      canvas.height = 400;
+      // Find restaurant data
+      const restaurant = restaurants.find(r => r.id === table.restaurant_id);
+      if (!restaurant) {
+        console.error('Restaurant not found for table:', table);
+        return;
+      }
 
-      // White background
-      ctx.fillStyle = '#ffffff';
+      // Set canvas size for modern QR card (600x900px - taller for better layout)
+      canvas.width = 600;
+      canvas.height = 900;
+
+      // Modern gradient background
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, '#ffffff');
+      gradient.addColorStop(0.1, '#f8fafc');
+      gradient.addColorStop(1, '#f1f5f9');
+      ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Generate actual QR code
-      const qrCodeDataURL = await QRCodeLib.toDataURL(qrData.url, {
-        width: 200,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#ffffff'
-        }
-      });
+      // Modern border with rounded corners effect
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-      // Load and draw QR code image
-      const qrImage = new Image();
-      qrImage.onload = () => {
-        // Draw QR code
-        ctx.drawImage(qrImage, 50, 50, 200, 200);
+      // Header section with restaurant branding
+      const headerHeight = 180;
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(20, 20, canvas.width - 40, headerHeight);
 
-        // Draw table info below QR code
-        ctx.fillStyle = '#000000';
-        ctx.font = 'bold 18px Arial';
+      // Restaurant Logo Section
+      const logoSize = 80;
+      const logoX = canvas.width / 2;
+      const logoY = 80;
+
+      const drawModernLogoFallback = () => {
+        // Modern logo background with gradient
+        const logoGradient = ctx.createRadialGradient(logoX, logoY, 0, logoX, logoY, logoSize / 2);
+        logoGradient.addColorStop(0, '#3b82f6');
+        logoGradient.addColorStop(1, '#1d4ed8');
+        
+        ctx.beginPath();
+        ctx.arc(logoX, logoY, logoSize / 2, 0, 2 * Math.PI);
+        ctx.fillStyle = logoGradient;
+        ctx.fill();
+        
+        // Add restaurant initial with modern typography
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 32px system-ui, -apple-system, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`Table ${table.table_number}`, 150, 280);
+        ctx.textBaseline = 'middle';
+        const initial = restaurant.name.charAt(0).toUpperCase();
+        ctx.fillText(initial, logoX, logoY);
         
-        ctx.font = '16px Arial';
-        ctx.fillText(table.name, 150, 305);
-        
-        ctx.font = '14px Arial';
-        ctx.fillText(`Capacity: ${table.capacity} people`, 150, 325);
-        
-        if (table.location) {
-          ctx.fillText(`Location: ${table.location}`, 150, 345);
+        // Add subtle shadow
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetY = 2;
+      };
+
+      const continueWithQRGeneration = () => {
+        // Restaurant Name with modern typography
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.fillText(restaurant.name, canvas.width / 2, 140);
+
+        // Restaurant info section
+        let currentY = 220;
+        if (restaurant.address || restaurant.phone || restaurant.email) {
+          ctx.fillStyle = '#64748b';
+          ctx.font = '14px system-ui, -apple-system, sans-serif';
+          
+          if (restaurant.address) {
+            ctx.fillText(restaurant.address, canvas.width / 2, currentY);
+            currentY += 20;
+          }
+          if (restaurant.phone) {
+            ctx.fillText(restaurant.phone, canvas.width / 2, currentY);
+            currentY += 20;
+          }
+          if (restaurant.email) {
+            ctx.fillText(restaurant.email, canvas.width / 2, currentY);
+            currentY += 20;
+          }
+          currentY += 20;
         }
 
-        // Add instructions
-        ctx.font = '12px Arial';
-        ctx.fillStyle = '#666666';
-        ctx.fillText('Scan this QR code to access the menu', 150, 375);
+        // Generate and draw QR code with modern styling
+        QRCodeLib.toDataURL(qrData.url, {
+          width: 300,
+          margin: 2,
+          color: {
+            dark: '#1e293b',
+            light: '#ffffff'
+          },
+          errorCorrectionLevel: 'M'
+        }).then(qrCodeDataURL => {
+          const qrImage = new Image();
+          qrImage.onload = () => {
+            // Modern QR Code container with shadow
+            const qrY = Math.max(currentY, 280);
+            const qrSize = 300;
+            const qrX = (canvas.width - qrSize) / 2;
+            
+            // QR background with modern shadow
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+            ctx.shadowBlur = 20;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 8;
+            
+            // Rounded rectangle effect
+            const radius = 16;
+            ctx.beginPath();
+            ctx.roundRect(qrX - 20, qrY - 20, qrSize + 40, qrSize + 40, radius);
+            ctx.fill();
+            
+            // Reset shadow
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+
+            // Draw QR code
+            ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+
+            // Modern table information section
+            const tableInfoY = qrY + qrSize + 60;
+            
+            // Table info modern container
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.05)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 4;
+            
+            ctx.beginPath();
+            ctx.roundRect(40, tableInfoY - 30, canvas.width - 80, 160, 12);
+            ctx.fill();
+            
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+
+            // Table Number with modern styling
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 32px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            const tableNumber = table.table_number || 'N/A';
+            ctx.fillText(`Table ${tableNumber}`, canvas.width / 2, tableInfoY);
+
+            // Table Name - Fix the issue here
+            ctx.fillStyle = '#475569';
+            ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+            const displayTableName = table.name && table.name.trim() ? table.name : `Table ${tableNumber}`;
+            ctx.fillText(displayTableName, canvas.width / 2, tableInfoY + 40);
+
+            // Modern table details with proper spacing
+            const detailsY = tableInfoY + 80;
+            const leftX = 80;
+            const rightX = canvas.width - 80;
+            
+            // Capacity with modern icon
+            ctx.fillStyle = '#64748b';
+            ctx.font = '16px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'left';
+            
+            // Draw modern users icon
+            drawModernUsersIcon(ctx, leftX, detailsY - 8, 20);
+            ctx.fillText(`${table.capacity || 'N/A'} People`, leftX + 30, detailsY + 5);
+            
+            // Location with modern icon (if available)
+            if (table.location && table.location.trim()) {
+              ctx.textAlign = 'right';
+              drawModernLocationIcon(ctx, rightX - 25, detailsY - 8, 20);
+              ctx.fillText(table.location, rightX - 30, detailsY + 5);
+            }
+
+            // Modern scan instruction
+            ctx.fillStyle = '#3b82f6';
+            ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Scan to View Digital Menu', canvas.width / 2, tableInfoY + 120);
+
+            // Modern branding footer
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '14px system-ui, -apple-system, sans-serif';
+            ctx.fillText('Powered by NayaMenu.com', canvas.width / 2, canvas.height - 40);
+            
+            // Modern decorative line
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2 - 80, canvas.height - 60);
+            ctx.lineTo(canvas.width / 2 + 80, canvas.height - 60);
+            ctx.stroke();
+          };
+          qrImage.src = qrCodeDataURL;
+        }).catch(error => {
+          console.error('Error generating QR code image:', error);
+          // Show error message on canvas
+          ctx.fillStyle = '#dc2626';
+          ctx.font = 'bold 24px system-ui, -apple-system, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('QR Code Generation Failed', canvas.width / 2, canvas.height / 2);
+        });
       };
-      qrImage.src = qrCodeDataURL;
+      
+      // Try to load restaurant logo if available
+      if (restaurant.logo_url) {
+        try {
+          const logoImg = new Image();
+          logoImg.crossOrigin = 'anonymous';
+          logoImg.onload = () => {
+            // Draw circular clipping path for logo
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(logoX, logoY, logoSize / 2, 0, 2 * Math.PI);
+            ctx.clip();
+            
+            // Draw logo image
+            ctx.drawImage(logoImg, logoX - logoSize/2, logoY - logoSize/2, logoSize, logoSize);
+            ctx.restore();
+            
+            // Add modern border around logo
+            ctx.beginPath();
+            ctx.arc(logoX, logoY, logoSize / 2, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            continueWithQRGeneration();
+          };
+          logoImg.onerror = () => {
+            drawModernLogoFallback();
+            continueWithQRGeneration();
+          };
+          logoImg.src = restaurant.logo_url;
+        } catch (error) {
+          drawModernLogoFallback();
+          continueWithQRGeneration();
+        }
+      } else {
+        drawModernLogoFallback();
+        continueWithQRGeneration();
+      }
 
     } catch (error) {
       console.error('Error generating QR code:', error);
       
-      // Fallback to text-based QR code placeholder
+      // Modern fallback design
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (ctx) {
+        canvas.width = 600;
+        canvas.height = 900;
 
-      canvas.width = 300;
-      canvas.height = 400;
+        // Modern error background
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#fef2f2');
+        gradient.addColorStop(1, '#fee2e2');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.fillStyle = '#f0f0f0';
-      ctx.fillRect(50, 50, 200, 200);
-      
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 16px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('QR CODE', 150, 140);
-      ctx.fillText('UNAVAILABLE', 150, 160);
-      
-      ctx.font = 'bold 18px Arial';
-      ctx.fillText(`Table ${table.table_number}`, 150, 280);
-      ctx.font = '16px Arial';
-      ctx.fillText(table.name, 150, 305);
-      ctx.font = '14px Arial';
-      ctx.fillText(`Capacity: ${table.capacity} people`, 150, 325);
-      if (table.location) {
-        ctx.fillText(`Location: ${table.location}`, 150, 345);
+        // Modern error message
+        ctx.fillStyle = '#dc2626';
+        ctx.font = 'bold 24px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('QR Code Generation Failed', canvas.width / 2, canvas.height / 2);
+        
+        ctx.fillStyle = '#7f1d1d';
+        ctx.font = '16px system-ui, -apple-system, sans-serif';
+        ctx.fillText('Please try again later', canvas.width / 2, canvas.height / 2 + 40);
       }
     }
+  };
+
+  // Modern users icon with proper scaling
+  const drawModernUsersIcon = (ctx: CanvasRenderingContext2D | null, x: number, y: number, size: number) => {
+    if (!ctx) return;
+    ctx.save();
+    ctx.fillStyle = '#3b82f6';
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2;
+    
+    // First user
+    ctx.beginPath();
+    ctx.arc(x + size * 0.3, y + size * 0.25, size * 0.15, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Second user
+    ctx.beginPath();
+    ctx.arc(x + size * 0.7, y + size * 0.25, size * 0.15, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Bodies with rounded rectangles
+    ctx.beginPath();
+    ctx.roundRect(x + size * 0.15, y + size * 0.5, size * 0.3, size * 0.4, size * 0.05);
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.roundRect(x + size * 0.55, y + size * 0.5, size * 0.3, size * 0.4, size * 0.05);
+    ctx.fill();
+    
+    ctx.restore();
+  };
+
+  // Modern location icon with proper scaling
+  const drawModernLocationIcon = (ctx: CanvasRenderingContext2D | null, x: number, y: number, size: number) => {
+    if (!ctx) return;
+    ctx.save();
+    ctx.fillStyle = '#ef4444';
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2;
+    
+    // Location pin body
+    ctx.beginPath();
+    ctx.arc(x + size * 0.5, y + size * 0.35, size * 0.25, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Pin point
+    ctx.beginPath();
+    ctx.moveTo(x + size * 0.5, y + size * 0.8);
+    ctx.lineTo(x + size * 0.35, y + size * 0.55);
+    ctx.lineTo(x + size * 0.65, y + size * 0.55);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Inner dot
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x + size * 0.5, y + size * 0.35, size * 0.1, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    ctx.restore();
   };
 
   const downloadQRCode = async (table: RestaurantTable) => {
@@ -290,28 +579,329 @@ export default function TablesPage() {
 
       const qrData = qrResponse.data;
       
-      // Generate QR code as data URL
-      const qrCodeDataURL = await QRCodeLib.toDataURL(qrData.url, {
-        width: 512,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#ffffff'
+      // Find restaurant data
+      const restaurant = restaurants.find(r => r.id === table.restaurant_id);
+      if (!restaurant) {
+        console.error('Restaurant not found for table:', table);
+        return;
+      }
+
+      // Create a temporary canvas for download
+      const tempCanvas = document.createElement('canvas');
+      const ctx = tempCanvas.getContext('2d');
+      if (!ctx) return;
+
+      // Set canvas size for modern QR card (600x900px)
+      tempCanvas.width = 600;
+      tempCanvas.height = 900;
+
+      // Modern gradient background
+      const gradient = ctx.createLinearGradient(0, 0, 0, tempCanvas.height);
+      gradient.addColorStop(0, '#ffffff');
+      gradient.addColorStop(0.1, '#f8fafc');
+      gradient.addColorStop(1, '#f1f5f9');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+      // Modern border
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(20, 20, tempCanvas.width - 40, tempCanvas.height - 40);
+
+      // Header section
+      const headerHeight = 180;
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(20, 20, tempCanvas.width - 40, headerHeight);
+
+      // Restaurant Logo Section
+      const logoSize = 80;
+      const logoX = tempCanvas.width / 2;
+      const logoY = 80;
+
+      const drawModernLogoFallback = () => {
+        if (!ctx) return;
+        // Modern logo background with gradient
+        const logoGradient = ctx.createRadialGradient(logoX, logoY, 0, logoX, logoY, logoSize / 2);
+        logoGradient.addColorStop(0, '#3b82f6');
+        logoGradient.addColorStop(1, '#1d4ed8');
+        
+        ctx.beginPath();
+        ctx.arc(logoX, logoY, logoSize / 2, 0, 2 * Math.PI);
+        ctx.fillStyle = logoGradient;
+        ctx.fill();
+        
+        // Add restaurant initial
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 32px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const initial = restaurant.name.charAt(0).toUpperCase();
+        ctx.fillText(initial, logoX, logoY);
+      };
+
+      const finishModernDrawing = () => {
+        if (!ctx) return;
+        
+        // Restaurant Name
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.fillText(restaurant.name, tempCanvas.width / 2, 140);
+
+        // Restaurant info
+        let currentY = 220;
+        if (restaurant.address || restaurant.phone || restaurant.email) {
+          ctx.fillStyle = '#64748b';
+          ctx.font = '14px system-ui, -apple-system, sans-serif';
+          
+          if (restaurant.address) {
+            ctx.fillText(restaurant.address, tempCanvas.width / 2, currentY);
+            currentY += 20;
+          }
+          if (restaurant.phone) {
+            ctx.fillText(restaurant.phone, tempCanvas.width / 2, currentY);
+            currentY += 20;
+          }
+          if (restaurant.email) {
+            ctx.fillText(restaurant.email, tempCanvas.width / 2, currentY);
+            currentY += 20;
+          }
+          currentY += 20;
         }
-      });
 
-      // Create safe filename - handle undefined/null name
-      const tableName = table.name || 'table';
-      const safeTableName = tableName.replace(/\s+/g, '-');
-      const filename = `table-${table.table_number}-${safeTableName}-qr.png`;
+        // Generate QR code
+        QRCodeLib.toDataURL(qrData.url, {
+          width: 300,
+          margin: 2,
+          color: {
+            dark: '#1e293b',
+            light: '#ffffff'
+          },
+          errorCorrectionLevel: 'M'
+        }).then(qrCodeDataURL => {
+          const qrImage = new Image();
+          qrImage.onload = () => {
+            // Modern QR Code container
+            const qrY = Math.max(currentY, 280);
+            const qrSize = 300;
+            const qrX = (tempCanvas.width - qrSize) / 2;
+            
+            // QR background with shadow
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+            ctx.shadowBlur = 20;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 8;
+            
+            // Rounded rectangle
+            const radius = 16;
+            ctx.beginPath();
+            ctx.roundRect(qrX - 20, qrY - 20, qrSize + 40, qrSize + 40, radius);
+            ctx.fill();
+            
+            // Reset shadow
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
 
-      // Create download link
-      const link = document.createElement('a');
-      link.href = qrCodeDataURL;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+            // Draw QR code
+            ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+
+            // Modern table information section
+            const tableInfoY = qrY + qrSize + 60;
+            
+            // Table info container
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.05)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 4;
+            
+            ctx.beginPath();
+            ctx.roundRect(40, tableInfoY - 30, tempCanvas.width - 80, 160, 12);
+            ctx.fill();
+            
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+
+            // Table Number
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 32px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            const tableNumber = table.table_number || 'N/A';
+            ctx.fillText(`Table ${tableNumber}`, tempCanvas.width / 2, tableInfoY);
+
+            // Table Name - Fixed logic here
+            ctx.fillStyle = '#475569';
+            ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+            const displayTableName = table.name && table.name.trim() && table.name !== `Table ${tableNumber}` 
+              ? table.name 
+              : `Table ${tableNumber}`;
+            ctx.fillText(displayTableName, tempCanvas.width / 2, tableInfoY + 40);
+
+            // Table details
+            const detailsY = tableInfoY + 80;
+            const leftX = 80;
+            const rightX = tempCanvas.width - 80;
+            
+            // Capacity
+            ctx.fillStyle = '#64748b';
+            ctx.font = '16px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'left';
+            
+            // Draw modern users icon
+            drawModernUsersIconForDownload(ctx, leftX, detailsY - 8, 20);
+            ctx.fillText(`${table.capacity || 'N/A'} People`, leftX + 30, detailsY + 5);
+            
+            // Location (if available)
+            if (table.location && table.location.trim()) {
+              ctx.textAlign = 'right';
+              drawModernLocationIconForDownload(ctx, rightX - 25, detailsY - 8, 20);
+              ctx.fillText(table.location, rightX - 30, detailsY + 5);
+            }
+
+            // Modern scan instruction
+            ctx.fillStyle = '#3b82f6';
+            ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Scan to View Digital Menu', tempCanvas.width / 2, tableInfoY + 120);
+
+            // Modern branding
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '14px system-ui, -apple-system, sans-serif';
+            ctx.fillText('Powered by NayaMenu.com', tempCanvas.width / 2, tempCanvas.height - 40);
+            
+            // Decorative line
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(tempCanvas.width / 2 - 80, tempCanvas.height - 60);
+            ctx.lineTo(tempCanvas.width / 2 + 80, tempCanvas.height - 60);
+            ctx.stroke();
+
+            // Convert to download
+            const finalDataURL = tempCanvas.toDataURL('image/png', 1.0);
+            
+            // Create filename
+            const safeTableName = (table.name && table.name.trim() ? table.name : `Table-${tableNumber}`).replace(/\s+/g, '-');
+            const restaurantName = restaurant.name.replace(/\s+/g, '-');
+            const filename = `${restaurantName}-${safeTableName}-QR.png`;
+
+            // Download
+            const link = document.createElement('a');
+            link.href = finalDataURL;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          };
+          qrImage.src = qrCodeDataURL;
+        }).catch(error => {
+          console.error('Error generating QR code for download:', error);
+          alert('Failed to generate QR code for download. Please try again.');
+        });
+      };
+
+      // Helper functions for download
+      const drawModernUsersIconForDownload = (context: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+        context.save();
+        context.fillStyle = '#3b82f6';
+        context.strokeStyle = '#3b82f6';
+        context.lineWidth = 2;
+        
+        // First user
+        context.beginPath();
+        context.arc(x + size * 0.3, y + size * 0.25, size * 0.15, 0, 2 * Math.PI);
+        context.fill();
+        
+        // Second user
+        context.beginPath();
+        context.arc(x + size * 0.7, y + size * 0.25, size * 0.15, 0, 2 * Math.PI);
+        context.fill();
+        
+        // Bodies
+        context.beginPath();
+        context.roundRect(x + size * 0.15, y + size * 0.5, size * 0.3, size * 0.4, size * 0.05);
+        context.fill();
+        
+        context.beginPath();
+        context.roundRect(x + size * 0.55, y + size * 0.5, size * 0.3, size * 0.4, size * 0.05);
+        context.fill();
+        
+        context.restore();
+      };
+
+      const drawModernLocationIconForDownload = (context: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+        context.save();
+        context.fillStyle = '#ef4444';
+        context.strokeStyle = '#ef4444';
+        context.lineWidth = 2;
+        
+        // Location pin body
+        context.beginPath();
+        context.arc(x + size * 0.5, y + size * 0.35, size * 0.25, 0, 2 * Math.PI);
+        context.fill();
+        
+        // Pin point
+        context.beginPath();
+        context.moveTo(x + size * 0.5, y + size * 0.8);
+        context.lineTo(x + size * 0.35, y + size * 0.55);
+        context.lineTo(x + size * 0.65, y + size * 0.55);
+        context.closePath();
+        context.fill();
+        
+        // Inner dot
+        context.fillStyle = '#ffffff';
+        context.beginPath();
+        context.arc(x + size * 0.5, y + size * 0.35, size * 0.1, 0, 2 * Math.PI);
+        context.fill();
+        
+        context.restore();
+      };
+
+      // Try to load restaurant logo
+      if (restaurant.logo_url) {
+        try {
+          const logoImg = new Image();
+          logoImg.crossOrigin = 'anonymous';
+          logoImg.onload = () => {
+            // Draw circular clipping path for logo
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(logoX, logoY, logoSize / 2, 0, 2 * Math.PI);
+            ctx.clip();
+            
+            // Draw logo image
+            ctx.drawImage(logoImg, logoX - logoSize/2, logoY - logoSize/2, logoSize, logoSize);
+            ctx.restore();
+            
+            // Add border around logo
+            ctx.beginPath();
+            ctx.arc(logoX, logoY, logoSize / 2, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            finishModernDrawing();
+          };
+          logoImg.onerror = () => {
+            drawModernLogoFallback();
+            finishModernDrawing();
+          };
+          logoImg.src = restaurant.logo_url;
+        } catch (error) {
+          drawModernLogoFallback();
+          finishModernDrawing();
+        }
+      } else {
+        drawModernLogoFallback();
+        finishModernDrawing();
+      }
+
     } catch (error) {
       console.error('Error downloading QR code:', error);
       alert('Failed to download QR code. Please try again.');
@@ -330,6 +920,29 @@ export default function TablesPage() {
       } catch (error) {
         console.error(`Error downloading QR for table ${table.name}:`, error);
       }
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      } catch (fallbackError) {
+        console.error('Fallback copy failed:', fallbackError);
+      }
+      document.body.removeChild(textArea);
     }
   };
 
@@ -416,6 +1029,93 @@ export default function TablesPage() {
     }
   };
 
+  // Bulk add tables function
+  const handleBulkAddTables = async () => {
+    if (!bulkAddData.prefix || !bulkAddData.restaurantId) {
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    if (bulkAddData.startNumber > bulkAddData.endNumber) {
+      alert("Start number must be less than or equal to end number");
+      return;
+    }
+
+    const totalTables = bulkAddData.endNumber - bulkAddData.startNumber + 1;
+    if (totalTables > 50) {
+      alert("Cannot create more than 50 tables at once");
+      return;
+    }
+
+    setIsBulkAdding(true);
+    setBulkAddResults(null);
+
+    try {
+      const tablesToCreate = [];
+      const errors = [];
+
+      // Generate table data
+      for (let i = bulkAddData.startNumber; i <= bulkAddData.endNumber; i++) {
+        const tableNumber = i.toString().padStart(2, '0');
+        const tableName = `${bulkAddData.prefix} ${tableNumber}`;
+        
+        tablesToCreate.push({
+          restaurantId: bulkAddData.restaurantId,
+          tableNumber: tableNumber,
+          name: tableName,
+          capacity: bulkAddData.capacity,
+          location: bulkAddData.location,
+          tableType: bulkAddData.tableType,
+          status: bulkAddData.status
+        });
+      }
+
+      // Create tables one by one (could be optimized with batch API)
+      let created = 0;
+      for (const tableData of tablesToCreate) {
+        try {
+          const response = await tableApi.createTable(tableData);
+          if (response.success) {
+            created++;
+          } else {
+            errors.push(`Failed to create ${tableData.name}: ${response.message || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`Failed to create ${tableData.name}: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      setBulkAddResults({ created, errors });
+
+      // Reload data
+      await loadTables();
+      const statsResponse = await tableApi.getTableStats();
+      if (statsResponse.success) {
+        setTableStats(statsResponse.data);
+      }
+
+      if (errors.length === 0) {
+        // Reset form if all successful
+        setBulkAddData({
+          prefix: "",
+          startNumber: 1,
+          endNumber: 10,
+          capacity: 4,
+          location: "",
+          tableType: "indoor",
+          status: "available",
+          restaurantId: restaurants.length > 0 ? restaurants[0].id : ""
+        });
+      }
+
+    } catch (error) {
+      console.error('Error bulk creating tables:', error);
+      alert('Failed to create tables. Please try again.');
+    } finally {
+      setIsBulkAdding(false);
+    }
+  };
+
   return (
     <DashboardLayout title="Table Management">
       {isLoading ? (
@@ -439,6 +1139,15 @@ export default function TablesPage() {
             >
               <Download className="w-4 h-4 mr-2" />
               Download All QR
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkAddDialog(true)}
+              className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+            >
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Bulk Add
             </Button>
             
             <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -693,6 +1402,19 @@ export default function TablesPage() {
                         <Download className="w-4 h-4 mr-2" />
                         Download QR
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={async () => {
+                        try {
+                          const qrResponse = await tableApi.generateTableQR(table.id);
+                          if (qrResponse.success) {
+                            await copyToClipboard(qrResponse.data.url);
+                          }
+                        } catch (error) {
+                          console.error('Error copying link:', error);
+                        }
+                      }}>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copy Link
+                      </DropdownMenuItem>
                       <DropdownMenuItem>
                         <Edit className="w-4 h-4 mr-2" />
                         Edit Table
@@ -749,8 +1471,32 @@ export default function TablesPage() {
                     variant="outline"
                     onClick={() => downloadQRCode(table)}
                     className="h-8"
+                    title="Download QR Code"
                   >
                     <QrCode className="w-3 h-3" />
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        const qrResponse = await tableApi.generateTableQR(table.id);
+                        if (qrResponse.success) {
+                          await copyToClipboard(qrResponse.data.url);
+                        }
+                      } catch (error) {
+                        console.error('Error copying link:', error);
+                      }
+                    }}
+                    className="h-8"
+                    title="Copy Menu Link"
+                  >
+                    {copySuccess ? (
+                      <Check className="w-3 h-3" />
+                    ) : (
+                      <Copy className="w-3 h-3" />
+                    )}
                   </Button>
                 </div>
               </CardContent>
@@ -809,6 +1555,19 @@ export default function TablesPage() {
                             <QrCode className="w-4 h-4 mr-2" />
                             View QR Code
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={async () => {
+                            try {
+                              const qrResponse = await tableApi.generateTableQR(table.id);
+                              if (qrResponse.success) {
+                                await copyToClipboard(qrResponse.data.url);
+                              }
+                            } catch (error) {
+                              console.error('Error copying link:', error);
+                            }
+                          }}>
+                            <Copy className="w-4 h-4 mr-2" />
+                            Copy Link
+                          </DropdownMenuItem>
                           <DropdownMenuItem>
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
@@ -832,69 +1591,408 @@ export default function TablesPage() {
         </Card>
       )}
 
-        {/* QR Code Dialog */}
-        <Dialog open={showQRDialog} onOpenChange={setShowQRDialog}>
-          <DialogContent className="sm:max-w-md">
+        {/* Modern QR Code Dialog */}
+        <Dialog open={showQRDialog} onOpenChange={(open) => {
+          setShowQRDialog(open);
+          if (!open) {
+            setCopySuccess(false);
+            setQrData(null);
+            setQrCodeUrl('');
+          }
+        }}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>QR Code - {selectedTable?.name}</DialogTitle>
-              <DialogDescription>
-                Scan this QR code to access the menu for this table
+              <DialogTitle className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <QrCode className="w-5 h-5 text-blue-600" />
+                </div>
+                QR Code - {selectedTable?.name || `Table ${selectedTable?.table_number}`}
+              </DialogTitle>
+              <DialogDescription className="text-base">
+                Professional QR code with restaurant branding for table ordering
               </DialogDescription>
             </DialogHeader>
             
-            <div className="flex flex-col items-center gap-4 py-4">
-              {qrCodeUrl ? (
-                <div className="flex flex-col items-center gap-4">
-                  <img 
-                    src={qrCodeUrl} 
-                    alt="QR Code" 
-                    className="border rounded-lg shadow-sm"
-                    width={256}
-                    height={256}
+            <div className="space-y-6">
+              {/* QR Code Preview */}
+              <div className="flex justify-center">
+                <div className="bg-white rounded-xl shadow-lg border p-4">
+                  <canvas 
+                    ref={qrCanvasRef}
+                    className="max-w-full h-auto rounded-lg"
+                    style={{ maxWidth: '400px', maxHeight: '500px' }}
                   />
-                  
-                  {selectedTable && (
-                    <div className="text-center space-y-2">
-                      <p className="text-sm text-gray-600">
-                        <strong>Table:</strong> {selectedTable.name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <strong>Number:</strong> {selectedTable.table_number}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <strong>Location:</strong> {selectedTable.location || 'No location'}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <strong>Capacity:</strong> {selectedTable.capacity} people
-                      </p>
-                    </div>
-                  )}
                 </div>
-              ) : (
-                <div className="flex flex-col items-center gap-4">
-                  <div className="w-64 h-64 border rounded-lg shadow-sm flex items-center justify-center bg-gray-50">
-                    <div className="text-center">
-                      <QrCode className="w-12 h-12 mx-auto text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-500">Loading QR Code...</p>
+              </div>
+
+              {/* Modern Feature Highlights */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-100">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Store className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <h4 className="font-semibold text-blue-900">Restaurant Branding</h4>
+                  </div>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-3 h-3" />
+                      Logo & restaurant name
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-3 h-3" />
+                      Contact information
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-3 h-3" />
+                      Professional design
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-lg border border-green-100">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <QrCode className="w-4 h-4 text-green-600" />
+                    </div>
+                    <h4 className="font-semibold text-green-900">QR Features</h4>
+                  </div>
+                  <ul className="text-sm text-green-700 space-y-1">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-3 h-3" />
+                      High-resolution print quality
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-3 h-3" />
+                      Error correction level M
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-3 h-3" />
+                      Mobile-optimized scanning
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Table Information Card */}
+              {selectedTable && (
+                <div className="bg-gray-50 rounded-lg p-4 border">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <div className="p-1 bg-gray-200 rounded">
+                      <Users className="w-4 h-4 text-gray-600" />
+                    </div>
+                    Table Information
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-600">Name:</span>
+                        <span className="text-gray-900">{selectedTable.name || `Table ${selectedTable.table_number}`}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-600">Number:</span>
+                        <span className="text-gray-900">{selectedTable.table_number || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-600">Capacity:</span>
+                        <span className="text-gray-900">{selectedTable.capacity || 'N/A'} people</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-600">Location:</span>
+                        <span className="text-gray-900">{selectedTable.location || 'Not specified'}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
-              
+
+                  {/* Copy Link Section */}
+              {qrData && (
+                <div className="bg-gray-50 rounded-lg p-4 border">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <div className="p-1 bg-gray-200 rounded">
+                      <Globe className="w-4 h-4 text-gray-600" />
+                    </div>
+                    Direct Link
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={qrData.url}
+                      readOnly
+                      className="flex-1 text-sm bg-white"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(qrData.url)}
+                    >
+                      {copySuccess ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={() => selectedTable && downloadQRCode(selectedTable)}
+                  className="flex-1"
+                  size="lg"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download QR Code
+                </Button>
+                
+                {qrData && (
+                  <Button
+                    onClick={() => copyToClipboard(qrData.url)}
+                    variant="outline"
+                    size="lg"
+                    className="flex-1"
+                  >
+                    {copySuccess ? (
+                      <>
+                        <Check className="w-4 h-4 mr-2" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copy Link
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Add Dialog */}
+        <Dialog open={showBulkAddDialog} onOpenChange={setShowBulkAddDialog}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5" />
+                Bulk Add Tables
+              </DialogTitle>
+              <DialogDescription>
+                Create multiple tables at once with sequential numbering
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Restaurant Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="bulk-restaurant">Restaurant *</Label>
+                <Select
+                  value={bulkAddData.restaurantId}
+                  onValueChange={(value) => setBulkAddData(prev => ({ ...prev, restaurantId: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select restaurant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {restaurants.map((restaurant) => (
+                      <SelectItem key={restaurant.id} value={restaurant.id}>
+                        {restaurant.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Table Prefix */}
+              <div className="space-y-2">
+                <Label htmlFor="bulk-prefix">Table Prefix *</Label>
+                <Input
+                  id="bulk-prefix"
+                  placeholder="e.g., Table, T, A"
+                  value={bulkAddData.prefix}
+                  onChange={(e) => setBulkAddData(prev => ({ ...prev, prefix: e.target.value }))}
+                />
+                <p className="text-xs text-gray-500">
+                  Tables will be named: {bulkAddData.prefix} 01, {bulkAddData.prefix} 02, etc.
+                </p>
+              </div>
+
+              {/* Number Range */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bulk-start">Start Number *</Label>
+                  <Input
+                    id="bulk-start"
+                    type="number"
+                    min="1"
+                    value={bulkAddData.startNumber}
+                    onChange={(e) => setBulkAddData(prev => ({ ...prev, startNumber: parseInt(e.target.value) || 1 }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bulk-end">End Number *</Label>
+                  <Input
+                    id="bulk-end"
+                    type="number"
+                    min="1"
+                    value={bulkAddData.endNumber}
+                    onChange={(e) => setBulkAddData(prev => ({ ...prev, endNumber: parseInt(e.target.value) || 1 }))}
+                  />
+                </div>
+              </div>
+
+              {/* Preview */}
+              {bulkAddData.prefix && bulkAddData.startNumber <= bulkAddData.endNumber && (
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-blue-900 mb-1">Preview:</p>
+                  <p className="text-xs text-blue-700">
+                    Will create {bulkAddData.endNumber - bulkAddData.startNumber + 1} tables: {' '}
+                    {bulkAddData.prefix} {bulkAddData.startNumber.toString().padStart(2, '0')} to {' '}
+                    {bulkAddData.prefix} {bulkAddData.endNumber.toString().padStart(2, '0')}
+                  </p>
+                </div>
+              )}
+
+              {/* Capacity */}
+              <div className="space-y-2">
+                <Label htmlFor="bulk-capacity">Capacity</Label>
+                <Input
+                  id="bulk-capacity"
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={bulkAddData.capacity}
+                  onChange={(e) => setBulkAddData(prev => ({ ...prev, capacity: parseInt(e.target.value) || 4 }))}
+                />
+              </div>
+
+              {/* Location */}
+              <div className="space-y-2">
+                <Label htmlFor="bulk-location">Location</Label>
+                <Input
+                  id="bulk-location"
+                  placeholder="e.g., Main Floor, Patio"
+                  value={bulkAddData.location}
+                  onChange={(e) => setBulkAddData(prev => ({ ...prev, location: e.target.value }))}
+                />
+              </div>
+
+              {/* Table Type */}
+              <div className="space-y-2">
+                <Label htmlFor="bulk-type">Table Type</Label>
+                <Select
+                  value={bulkAddData.tableType}
+                  onValueChange={(value: 'indoor' | 'outdoor' | 'private') => 
+                    setBulkAddData(prev => ({ ...prev, tableType: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="indoor">Indoor</SelectItem>
+                    <SelectItem value="outdoor">Outdoor</SelectItem>
+                    <SelectItem value="private">Private</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Status */}
+              <div className="space-y-2">
+                <Label htmlFor="bulk-status">Status</Label>
+                <Select
+                  value={bulkAddData.status}
+                  onValueChange={(value: RestaurantTable['status']) => 
+                    setBulkAddData(prev => ({ ...prev, status: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="available">Available</SelectItem>
+                    <SelectItem value="occupied">Occupied</SelectItem>
+                    <SelectItem value="reserved">Reserved</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Results */}
+              {bulkAddResults && (
+                <div className="space-y-2">
+                  {bulkAddResults.created > 0 && (
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-900">
+                          Successfully created {bulkAddResults.created} tables
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {bulkAddResults.errors.length > 0 && (
+                    <div className="bg-red-50 p-3 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-red-600 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-red-900 mb-1">
+                            {bulkAddResults.errors.length} errors occurred:
+                          </p>
+                          <ul className="text-xs text-red-700 space-y-1">
+                            {bulkAddResults.errors.slice(0, 5).map((error, index) => (
+                              <li key={index}>• {error}</li>
+                            ))}
+                            {bulkAddResults.errors.length > 5 && (
+                              <li>• ... and {bulkAddResults.errors.length - 5} more</li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
               <Button
-                onClick={() => selectedTable && downloadQRCode(selectedTable)}
-                className="w-full"
-                disabled={!qrCodeUrl}
+                variant="outline"
+                onClick={() => {
+                  setShowBulkAddDialog(false);
+                  setBulkAddResults(null);
+                }}
               >
-                <Download className="w-4 h-4 mr-2" />
-                Download QR Code
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBulkAddTables}
+                disabled={isBulkAdding || !bulkAddData.prefix || !bulkAddData.restaurantId}
+              >
+                {isBulkAdding ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Create {bulkAddData.endNumber - bulkAddData.startNumber + 1} Tables
+                  </>
+                )}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
 
         {/* Hidden canvas for QR generation */}
-        <canvas ref={qrCanvasRef} style={{ display: 'none' }} />
+        <canvas ref={hiddenCanvasRef} style={{ display: 'none' }} />
         </div>
       )}
     </DashboardLayout>

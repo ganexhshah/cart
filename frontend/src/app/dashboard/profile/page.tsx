@@ -41,7 +41,7 @@ import {
 import { userApi } from "@/lib/user";
 import { uploadApi } from "@/lib/upload";
 import { authApi } from "@/lib/auth";
-import { subscriptionApi, SubscriptionPlan, UserSubscription, BillingRecord } from "@/lib/subscription";
+import { subscriptionApi, SubscriptionPlan, UserSubscription } from "@/lib/subscription";
 
 import { useState, useRef, useEffect } from "react";
 
@@ -56,7 +56,6 @@ export default function ProfilePage() {
   const [show2FADialog, setShow2FADialog] = useState(false);
   const [showLoginHistoryDialog, setShowLoginHistoryDialog] = useState(false);
   const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
-  const [showBillingHistoryDialog, setShowBillingHistoryDialog] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -72,7 +71,6 @@ export default function ProfilePage() {
   const [currentPlan, setCurrentPlan] = useState("premium");
   const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [userSubscription, setUserSubscription] = useState<UserSubscription | null>(null);
-  const [billingHistory, setBillingHistory] = useState<BillingRecord[]>([]);
   const [loginHistory, setLoginHistory] = useState<any[]>([]);
   const [accountStats, setAccountStats] = useState({
     memberSince: '',
@@ -163,12 +161,6 @@ export default function ProfilePage() {
         if (subResponse.success && subResponse.data) {
           setUserSubscription(subResponse.data);
           setCurrentPlan(subResponse.data.plan_id);
-        }
-
-        // Fetch billing history
-        const billingResponse = await subscriptionApi.getBillingHistory(10);
-        if (billingResponse.success && billingResponse.data) {
-          setBillingHistory(billingResponse.data);
         }
 
         // Fetch account stats
@@ -314,10 +306,6 @@ export default function ProfilePage() {
         setShowSubscriptionDialog(false);
         setSaveStatus('success');
         
-        // Refresh billing history
-        const billingResponse = await subscriptionApi.getBillingHistory(10);
-        if (billingResponse.success && billingResponse.data) {
-          setBillingHistory(billingResponse.data);
         }
       }
       setTimeout(() => setSaveStatus('idle'), 3000);
@@ -930,36 +918,6 @@ export default function ProfilePage() {
                 </Button>
               </CardContent>
             </Card>
-
-            {/* Billing */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Billing
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-sm">
-                  <p className="font-medium">{getCurrentPlanDetails().name} Plan</p>
-                  <p className="text-muted-foreground">${getCurrentPlanDetails().price}/{getCurrentPlanDetails().interval}</p>
-                </div>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={() => setShowSubscriptionDialog(true)}
-                >
-                  Manage Subscription
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={() => setShowBillingHistoryDialog(true)}
-                >
-                  Billing History
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
 
@@ -1336,97 +1294,6 @@ export default function ProfilePage() {
               variant="outline" 
               onClick={() => setShowSubscriptionDialog(false)}
               disabled={isUpdatingSubscription}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Billing History Dialog */}
-      <Dialog open={showBillingHistoryDialog} onOpenChange={setShowBillingHistoryDialog}>
-        <DialogContent className="sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Billing History</DialogTitle>
-            <DialogDescription>
-              View and download your past invoices and payment history.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-96 overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Payment Method</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Invoice</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {billingHistory.map((bill) => (
-                  <TableRow key={bill.id}>
-                    <TableCell className="font-medium">
-                      {new Date(bill.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </TableCell>
-                    <TableCell>{bill.description}</TableCell>
-                    <TableCell className="font-medium">
-                      ₹{Number(bill.amount || 0).toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4 text-muted-foreground" />
-                        {bill.payment_method || '•••• 4242'}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={bill.status === "paid" ? "default" : "destructive"}
-                        className={bill.status === "paid" ? "bg-green-100 text-green-800" : ""}
-                      >
-                        {bill.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {bill.status === "paid" ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => downloadInvoice(bill.invoice_number)}
-                          className="h-8 px-2"
-                        >
-                          <Download className="w-4 h-4 mr-1" />
-                          {bill.invoice_number}
-                        </Button>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">N/A</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex items-center justify-between pt-4 border-t">
-            <div className="text-sm text-muted-foreground">
-              Showing {billingHistory.length} transactions
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
-                Export All
-              </Button>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowBillingHistoryDialog(false)}
             >
               Close
             </Button>

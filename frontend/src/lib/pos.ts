@@ -225,4 +225,9 @@ export const posApi = {
     const queryString = params.toString();
     return api.get<ApiResponse<any>>(`/pos/reports/daily${queryString ? `?${queryString}` : ''}`);
   },
+
+  // Create order through POS
+  createOrder: async (data: any): Promise<ApiResponse<any>> => {
+    return api.post<ApiResponse<any>>('/pos/orders', data);
+  },
 };

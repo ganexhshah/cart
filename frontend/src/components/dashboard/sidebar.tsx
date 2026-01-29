@@ -39,7 +39,8 @@ import {
   LogOut,
   CreditCard,
   Package,
-  Truck
+  Truck,
+  Grid3x3
 } from "lucide-react";
 import { authApi } from "@/lib/auth";
 import { restaurantApi } from "@/lib/restaurants";
@@ -64,14 +65,14 @@ const navMain = [
         icon: Store,
       },
       {
+        title: "Floor Management",
+        url: "/dashboard/floor-management",
+        icon: Grid3x3,
+      },
+      {
         title: "Orders",
         url: "/dashboard/orders",
         icon: ShoppingCart,
-      },
-      {
-        title: "Billing & Payments",
-        url: "/dashboard/billing",
-        icon: Receipt,
       },
       {
         title: "KOT Management",

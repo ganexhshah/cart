@@ -67,13 +67,6 @@ export default function HelpPage() {
       popular: true
     },
     {
-      id: 5,
-      category: "Billing",
-      question: "How do I upgrade my subscription plan?",
-      answer: "Go to Profile > Billing section and click 'Manage Subscription'. You can compare plans and upgrade instantly. Your new features will be available immediately after payment confirmation.",
-      popular: false
-    },
-    {
       id: 6,
       category: "Technical",
       question: "What should I do if I'm not receiving order notifications?",
@@ -137,12 +130,6 @@ export default function HelpPage() {
       title: "Order Management",
       description: "Handle orders, update status, and manage customer communications",
       articles: 15
-    },
-    {
-      icon: CreditCard,
-      title: "Billing & Subscriptions",
-      description: "Manage your subscription, billing, and payment methods",
-      articles: 6
     },
     {
       icon: Shield,
